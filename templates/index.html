@@ -1,0 +1,305 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Pumpkin AI - Stream</title>
+  <style>
+    body { background:#111; color:#eee; font-family: Arial, sans-serif; text-align:center }
+    img { max-width: 100%; height: auto; border: 1px solid #333 }
+    .controls { margin-top: 10px }
+    button { margin: 0 6px; padding: 8px 14px; font-size: 14px }
+  </style>
+</head>
+<body>
+  <h1>Pumpkin AI</h1>
+  <img id="stream" src="/stream" alt="video stream">
+
+  <div class="controls">
+    <button id="modeBtn" onclick="toggleMode()">Switch to Dev</button>
+    <span id="prodControls" style="display:inline-block">
+      <button id="snapshotBtn" onclick="triggerSnapshot()">Snapshot</button>
+      <button id="resetBtn" onclick="resetProd()">Reset</button>
+    </span>
+    <span id="devControls" style="display:none">
+  <span id="overlayButtons" style="display:inline-block"></span>
+  <button id="clearOverlaysBtn" onclick="clearOverlays()">Disable All Overlays</button>
+  <span id="activeOverlayList" style="margin-left:10px"></span>
+  <button id="nudgeBtn" onclick="toggleNudge()">Enable Nudge Mode</button>
+    </span>
+  </div>
+  <div id="nudgePanel" style="display:none; margin-top:14px;">
+    <div style="margin-bottom:6px;"><strong>Nudge Target:</strong> <span id="nudgeTargetLabel">none</span></div>
+    <div id="nudgeConfigValues" style="margin-bottom:6px; font-size:13px; color:#ccc;">config not loaded</div>
+    <div>
+      <button onclick="applyNudge('offset_up')">Up</button>
+    </div>
+    <div style="margin-top:4px;">
+      <button onclick="applyNudge('offset_left')">Left</button>
+      <button onclick="applyNudge('offset_down')">Down</button>
+      <button onclick="applyNudge('offset_right')">Right</button>
+    </div>
+    <div style="margin-top:4px;">
+      <button onclick="applyNudge('scale_down')">Scale -</button>
+      <button onclick="applyNudge('scale_up')">Scale +</button>
+      <button onclick="applyNudge('anchor_left')">Anchor -</button>
+      <button onclick="applyNudge('anchor_right')">Anchor +</button>
+      <button onclick="applyNudge('y_offset_up')">Y Off -</button>
+      <button onclick="applyNudge('y_offset_down')">Y Off +</button>
+    </div>
+    <div style="margin-top:4px;">
+      <button onclick="applyNudge('save')">Save Config</button>
+      <button onclick="applyNudge('reload')">Reload</button>
+    </div>
+    <div id="nudgeNotice" style="margin-top:6px; font-size:12px; color:#aaa;"></div>
+  </div>
+
+  <script>
+  let currentMode = 'prod';
+  let prodFrozen = false;
+  let prodWaiting = false;
+  let overlayCatalog = [];
+  let activeOverlays = [];
+  let nudgeMode = false;
+  let nudgeTarget = null;
+  let nudgeConfig = null;
+  let nudgeMessage = '';
+  let nudgeCooldownUntil = 0;
+
+  function applyNudge(action){
+    if(!nudgeMode || !action){
+      return;
+    }
+    const now = Date.now();
+    if(now < nudgeCooldownUntil){
+      return;
+    }
+    nudgeCooldownUntil = now + 200;
+    fetch('/api/nudge/'+encodeURIComponent(action), {method:'POST'})
+      .then(r=>r.json())
+      .then(res=>{
+        if(res.nudge !== undefined){
+          nudgeMode = !!res.nudge;
+        }
+        if(res.target !== undefined){
+          nudgeTarget = res.target;
+        }
+        if(Object.prototype.hasOwnProperty.call(res, 'config')){
+          nudgeConfig = res.config;
+        }
+        if(res.nudge_message || res.message){
+          nudgeMessage = res.nudge_message || res.message || '';
+        }
+        updateNudgePanel();
+        if(res.error){
+          console.error(res.error);
+        }
+      })
+      .catch(()=>{});
+  }
+
+  function updateNudgePanel(){
+    const panel = document.getElementById('nudgePanel');
+    const label = document.getElementById('nudgeTargetLabel');
+    const cfgBox = document.getElementById('nudgeConfigValues');
+    const notice = document.getElementById('nudgeNotice');
+    if(!panel || !label || !cfgBox || !notice){
+      return;
+    }
+    if(!nudgeMode || currentMode !== 'dev'){
+      panel.style.display = 'none';
+      return;
+    }
+    panel.style.display = 'block';
+    label.textContent = nudgeTarget ? stripExt(nudgeTarget) : 'none';
+    if(nudgeConfig){
+      cfgBox.textContent = `scale ${nudgeConfig.scale.toFixed(3)} | y ${nudgeConfig.y_offset.toFixed(3)} | anchor ${nudgeConfig.x_anchor.toFixed(3)} | offx ${nudgeConfig.offset_x} | offy ${nudgeConfig.offset_y}`;
+    } else {
+      cfgBox.textContent = 'config not loaded';
+    }
+    notice.textContent = nudgeMessage || '';
+  }
+  function toggleNudge(){
+    fetch('/api/toggle_nudge', {method:'POST'})
+      .then(r=>r.json())
+      .then(s=>{
+        if(typeof s.nudge === 'boolean'){
+          nudgeMode = s.nudge;
+        }
+        if(s.target !== undefined){
+          nudgeTarget = s.target;
+        }
+        if(Object.prototype.hasOwnProperty.call(s, 'config')){
+          nudgeConfig = s.config;
+        }
+        if(s.nudge_message || s.message){
+          nudgeMessage = s.nudge_message || s.message || '';
+        }
+        updateUi();
+      })
+      .catch(()=>{});
+  }
+
+
+  function stripExt(name){
+    return name ? name.replace(/\.png$/i, '') : name;
+  }
+
+  function rebuildOverlayButtons(list){
+    const container = document.getElementById('overlayButtons');
+    if(!container) return;
+    container.innerHTML = '';
+    list.forEach(name => {
+      const label = stripExt(name);
+      const btn = document.createElement('button');
+      btn.textContent = label;
+      btn.onclick = () => addOverlay(label);
+      container.appendChild(btn);
+    });
+  }
+
+  function addOverlay(name){
+    fetch('/api/overlay/'+encodeURIComponent(name), {method:'POST'})
+      .then(r=>r.json())
+      .then(s=>{
+        if(s.active_overlays){
+          activeOverlays = s.active_overlays;
+        }
+        updateUi();
+      })
+      .catch(()=>{});
+  }
+
+  function clearOverlays(){
+    fetch('/api/overlay/reset', {method:'POST'})
+      .then(r=>r.json())
+      .then(s=>{
+        if(s.active_overlays){
+          activeOverlays = s.active_overlays;
+        }
+        updateUi();
+      })
+      .catch(()=>{});
+  }
+
+  function updateActiveOverlayLabel(){
+    const el = document.getElementById('activeOverlayList');
+    if(!el) return;
+    if(currentMode === 'prod'){
+      el.textContent = '';
+      return;
+    }
+    if(activeOverlays.length){
+      el.textContent = 'Active: ' + activeOverlays.map(stripExt).join(', ');
+    } else {
+      el.textContent = 'Active: none';
+    }
+  }
+
+  function triggerSnapshot(){
+    fetch('/api/prod_snapshot', {method:'POST'})
+      .then(()=>{
+        prodFrozen = false;
+        prodWaiting = true;
+        updateUi();
+      });
+  }
+
+  function resetProd(){
+    fetch('/api/prod_reset', {method:'POST'})
+      .then(()=>{
+        prodFrozen = false;
+        prodWaiting = false;
+        updateUi();
+      });
+  }
+
+  function updateUi(){
+    const modeBtn = document.getElementById('modeBtn');
+    const devControls = document.getElementById('devControls');
+    const prodControls = document.getElementById('prodControls');
+    const snapshotBtn = document.getElementById('snapshotBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const fpsBox = document.getElementById('fpsBox');
+    const clearBtn = document.getElementById('clearOverlaysBtn');
+    const nudgeBtn = document.getElementById('nudgeBtn');
+
+    if(currentMode === 'prod'){
+      modeBtn.textContent = 'Switch to Dev';
+      devControls.style.display = 'none';
+      prodControls.style.display = 'inline-block';
+      snapshotBtn.disabled = prodFrozen || prodWaiting;
+      resetBtn.disabled = !prodFrozen && !prodWaiting;
+      if(fpsBox){
+        fpsBox.style.display = 'none';
+      }
+    } else {
+      modeBtn.textContent = 'Switch to Prod';
+      devControls.style.display = 'inline-block';
+      prodControls.style.display = 'none';
+      if(fpsBox){
+        fpsBox.style.display = 'block';
+      }
+    }
+    if(clearBtn){
+      clearBtn.disabled = activeOverlays.length === 0;
+    }
+    if(nudgeBtn){
+      if(currentMode === 'prod'){
+        nudgeBtn.disabled = true;
+        nudgeBtn.textContent = 'Enable Nudge Mode';
+      } else {
+        nudgeBtn.disabled = false;
+        nudgeBtn.textContent = nudgeMode ? 'Disable Nudge Mode' : 'Enable Nudge Mode';
+      }
+    }
+    updateActiveOverlayLabel();
+    updateNudgePanel();
+  }
+
+  // Poll status every second
+  setInterval(()=>{
+    fetch('/api/status')
+      .then(r=>r.json())
+      .then(s=>{
+        document.getElementById('fps').textContent = s.fps + ' FPS';
+        const catalog = Array.isArray(s.overlays) ? s.overlays : [];
+        if(JSON.stringify(catalog) !== JSON.stringify(overlayCatalog)){
+          overlayCatalog = catalog;
+          rebuildOverlayButtons(overlayCatalog);
+        }
+        activeOverlays = Array.isArray(s.active_overlays) ? s.active_overlays : [];
+        nudgeMode = !!s.nudge;
+        if(Object.prototype.hasOwnProperty.call(s, 'nudge_target')){
+          nudgeTarget = s.nudge_target;
+        }
+        if(Object.prototype.hasOwnProperty.call(s, 'nudge_config')){
+          nudgeConfig = s.nudge_config;
+        }
+        nudgeMessage = s.nudge_message || '';
+        currentMode = s.mode;
+        prodFrozen = !!s.prod_frozen;
+        prodWaiting = !!s.prod_waiting;
+        updateUi();
+      })
+      .catch(()=>{});
+  }, 1000);
+
+  function toggleMode(){
+    const next = currentMode === 'prod' ? 'dev' : 'prod';
+    fetch('/api/set_mode?mode='+next, {method:'POST'}).then(()=>{
+      currentMode = next;
+      if(next === 'dev'){
+        prodFrozen = false;
+        prodWaiting = false;
+      }
+      updateUi();
+    });
+  }
+
+  // initialize UI to match defaults
+  updateUi();
+  updateNudgePanel();
+  </script>
+  <div id="fpsBox" style="position:fixed; right:10px; top:10px; color:#0f0; font-weight:bold">FPS: <span id="fps">-</span></div>
+</body>
+</html>

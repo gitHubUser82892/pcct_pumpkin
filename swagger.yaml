@@ -1,0 +1,326 @@
+openapi: 3.0.3
+info:
+  title: Pumpkin AI Web API
+  version: 1.0.0
+  description: |
+    REST endpoints exposed by the Pumpkin AI web server. All endpoints return
+    JSON unless otherwise noted. Authentication is not required on the local
+    network; protect these endpoints appropriately before exposing them
+    publicly.
+servers:
+  - url: http://{host}:{port}
+    description: Default MJPEG server
+    variables:
+      host:
+        default: localhost
+      port:
+        default: "5000"
+paths:
+  /stream:
+    get:
+      summary: MJPEG video stream
+      operationId: getStream
+      responses:
+        '200':
+          description: MJPEG stream
+          content:
+            multipart/x-mixed-replace:
+              schema:
+                type: string
+                format: binary
+  /api/status:
+    get:
+      summary: Current server status
+      operationId: getStatus
+      responses:
+        '200':
+          description: Runtime state for UI/automation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+  /api/set_mode:
+    post:
+      summary: Switch between dev and prod mode
+      operationId: setMode
+      parameters:
+        - in: query
+          name: mode
+          schema:
+            type: string
+            enum: [dev, prod]
+          required: true
+          description: Target mode for the camera pipeline
+      responses:
+        '200':
+          description: Mode updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleResponse'
+        '400':
+          description: Invalid mode value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/prod_reset:
+    post:
+      summary: Clear frozen frame and return to live stream
+      operationId: resetProd
+      responses:
+        '200':
+          description: Reset acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleResponse'
+  /api/prod_snapshot:
+    post:
+      summary: Arm snapshot capture via UI alias
+      operationId: prodSnapshot
+      responses:
+        '200':
+          description: Snapshot armed (or already waiting)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnapshotResponse'
+        '409':
+          description: Snapshot only allowed in prod mode
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/snapshot:
+    post:
+      summary: Arm snapshot capture for next detected face
+      operationId: apiSnapshot
+      responses:
+        '200':
+          description: Snapshot armed (or already waiting)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnapshotResponse'
+        '409':
+          description: Snapshot only allowed in prod mode
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/prod_freeze:
+    post:
+      summary: Immediately freeze the current frame
+      operationId: prodFreeze
+      responses:
+        '200':
+          description: Frame frozen successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleResponse'
+        '400':
+          description: Frame unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/overlay/{overlayName}:
+    post:
+      summary: Add overlay by file name
+      operationId: setOverlayByName
+      parameters:
+        - in: path
+          name: overlayName
+          required: true
+          schema:
+            type: string
+          description: Overlay identifier (PNG filename, .png optional)
+      responses:
+        '200':
+          description: Overlay added to active stack
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OverlayResponse'
+        '404':
+          description: Overlay not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/next_overlay:
+    post:
+      summary: Append the next overlay in catalog order
+      operationId: nextOverlay
+      responses:
+        '200':
+          description: Overlay list updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OverlayResponse'
+  /api/prev_overlay:
+    post:
+      summary: Append the previous overlay in catalog order
+      operationId: prevOverlay
+      responses:
+        '200':
+          description: Overlay list updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OverlayResponse'
+  /api/toggle_overlay:
+    post:
+      summary: Clear all active overlays
+      operationId: clearOverlays
+      responses:
+        '200':
+          description: Active overlays cleared
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OverlayResponse'
+  /api/overlay/reset:
+    post:
+      summary: Clear overlay stack
+      operationId: resetOverlayStack
+      responses:
+        '200':
+          description: All overlays removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OverlayResponse'
+  /api/toggle_facebox:
+    post:
+      summary: Toggle face bounding-box overlay
+      operationId: toggleFaceBox
+      responses:
+        '200':
+          description: Face box visibility state returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleResponse'
+        '409':
+          description: Face box locked on in dev mode
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/toggle_nudge:
+    post:
+      summary: Toggle overlay nudge controls
+      operationId: toggleNudge
+      responses:
+        '200':
+          description: Nudge mode state returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleResponse'
+components:
+  schemas:
+    StatusResponse:
+      type: object
+      properties:
+        fps:
+          type: number
+          format: float
+        overlay:
+          type: string
+          nullable: true
+        overlays:
+          type: array
+          items:
+            type: string
+        active_overlays:
+          type: array
+          items:
+            type: string
+        nudge:
+          type: boolean
+        mode:
+          type: string
+          enum: [dev, prod]
+        prod_frozen:
+          type: boolean
+        prod_waiting:
+          type: boolean
+        last_snapshot:
+          type: string
+          nullable: true
+      required:
+        - fps
+        - overlays
+        - active_overlays
+        - nudge
+        - mode
+        - prod_frozen
+        - prod_waiting
+    SimpleResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        show_face_box:
+          type: boolean
+          nullable: true
+        nudge:
+          type: boolean
+          nullable: true
+      required:
+        - success
+      additionalProperties: true
+    SnapshotResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        waiting:
+          type: boolean
+        mode:
+          type: string
+          enum: [dev, prod]
+      required:
+        - success
+        - waiting
+        - mode
+      additionalProperties: true
+    OverlayResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        overlay:
+          type: string
+          nullable: true
+        active_overlays:
+          type: array
+          items:
+            type: string
+      required:
+        - success
+        - active_overlays
+      additionalProperties: true
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+        mode:
+          type: string
+          nullable: true
+        requested:
+          type: string
+          nullable: true
+      required:
+        - success
+        - error
+      additionalProperties: true

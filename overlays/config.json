@@ -1,0 +1,18 @@
+{
+  "fangs.png": {
+    "scale": 0.64,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 2,
+    "offset_y": 6,
+    "description": "Fangs positioned around lower third of face"
+  },
+  "horns.png": {
+    "scale": 1.16,
+    "y_offset": -0.7,
+    "x_anchor": 0.5,
+    "offset_x": 0,
+    "offset_y": -8,
+    "description": "Horns positioned above the forehead/head"
+  }
+}

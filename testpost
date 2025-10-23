@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+"""Utility for exercising Pumpkin AI POST endpoints."""
+
+import argparse
+import json
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+
+
+def post(url: str) -> int:
+    req = urllib.request.Request(url, data=b"", method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            body = resp.read().decode("utf-8", errors="replace")
+            ctype = resp.headers.get("Content-Type", "")
+            if "application/json" in ctype:
+                try:
+                    data = json.loads(body)
+                    print(json.dumps(data, indent=2, sort_keys=True))
+                except json.JSONDecodeError:
+                    print(body)
+            else:
+                print(body)
+            return 0
+    except urllib.error.HTTPError as exc:
+        try:
+            payload = exc.read().decode("utf-8", errors="replace")
+        except Exception:
+            payload = ""
+        msg = f"HTTP {exc.code} {exc.reason}"
+        if payload:
+            try:
+                data = json.loads(payload)
+                payload = json.dumps(data, indent=2, sort_keys=True)
+            except json.JSONDecodeError:
+                pass
+            msg += f"\n{payload}"
+        print(msg, file=sys.stderr)
+        return exc.code if 0 < exc.code < 255 else 1
+    except urllib.error.URLError as exc:
+        print(f"Failed to reach server: {exc}", file=sys.stderr)
+        return 1
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Send Pumpkin AI POST commands")
+    parser.add_argument("-o", "--overlay", help="Overlay filename to activate")
+    parser.add_argument("-s", "--snapshot", action="store_true", help="Trigger snapshot capture")
+    parser.add_argument("-c", "--clear", action="store_true", help="Clear all overlays")
+    parser.add_argument("--host", default="localhost", help="Server host (default: localhost)")
+    parser.add_argument("--port", default="5000", help="Server port (default: 5000)")
+    args = parser.parse_args()
+
+    actions = int(bool(args.overlay)) + int(args.snapshot) + int(args.clear)
+    if actions != 1:
+        parser.error("Specify exactly one action: -o, -s, or -c")
+
+    base = f"http://{args.host}:{args.port}"
+
+    if args.overlay:
+        value = args.overlay
+        if not value.lower().endswith('.png'):
+            value = f"{value}.png"
+        overlay = urllib.parse.quote(value)
+        url = f"{base}/api/overlay/{overlay}"
+        return post(url)
+
+    if args.snapshot:
+        url = f"{base}/api/snapshot"
+        return post(url)
+
+    if args.clear:
+        url = f"{base}/api/overlay/reset"
+        return post(url)
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
