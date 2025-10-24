@@ -222,6 +222,39 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SimpleResponse'
+  /api/story:
+    get:
+      summary: Retrieve the current story text
+      operationId: getStory
+      responses:
+        '200':
+          description: Current story payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoryResponse'
+    post:
+      summary: Update the story text
+      operationId: setStory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoryUpdateRequest'
+      responses:
+        '200':
+          description: Story updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoryResponse'
+        '400':
+          description: Invalid or missing story text
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
     StatusResponse:
@@ -252,6 +285,12 @@ components:
           type: boolean
         last_snapshot:
           type: string
+          nullable: true
+        story_text:
+          type: string
+        story_updated:
+          type: string
+          format: date-time
           nullable: true
       required:
         - fps
@@ -324,3 +363,24 @@ components:
         - success
         - error
       additionalProperties: true
+    StoryResponse:
+      type: object
+      properties:
+        text:
+          type: string
+        updated:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - text
+      additionalProperties: false
+    StoryUpdateRequest:
+      type: object
+      properties:
+        text:
+          type: string
+          description: Text to display in the story panel
+      required:
+        - text
+      additionalProperties: false

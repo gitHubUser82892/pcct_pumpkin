@@ -34,6 +34,8 @@ state = {
     "prod_frame": None,
     "prod_waiting": False,
     "last_snapshot_path": None,
+    "story_text": "",
+    "story_updated": None,
 }
 
 
@@ -654,6 +656,28 @@ def api_nudge_action(action):
     )
 
 
+@app.route('/api/story', methods=['GET', 'POST'])
+def api_story():
+    if request.method == 'POST':
+        data = request.get_json(silent=True)
+        if isinstance(data, dict) and 'text' in data:
+            raw_text = data.get('text')
+        else:
+            raw_text = request.form.get('text', request.args.get('text'))
+
+        if raw_text is None:
+            return jsonify(success=False, error='Missing story text.'), 400
+        text = str(raw_text).strip()
+        state['story_text'] = text
+        state['story_updated'] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+        return jsonify(success=True, text=state['story_text'], updated=state['story_updated'])
+
+    return jsonify(
+        text=state.get('story_text', ''),
+        updated=state.get('story_updated'),
+    )
+
+
 @app.route('/api/status', methods=['GET'])
 def api_status():
     active = list(state.get('active_overlays', []))
@@ -672,6 +696,8 @@ def api_status():
         prod_frozen=state.get('prod_frozen', False),
         prod_waiting=state.get('prod_waiting', False),
         last_snapshot=state.get('last_snapshot_path'),
+        story_text=state.get('story_text', ''),
+        story_updated=state.get('story_updated'),
     )
 
 

@@ -9,8 +9,12 @@ import urllib.parse
 import urllib.request
 
 
-def post(url: str) -> int:
-    req = urllib.request.Request(url, data=b"", method="POST")
+def post(url: str, payload: bytes | None = None, headers: dict[str, str] | None = None) -> int:
+    data = payload if payload is not None else b""
+    req = urllib.request.Request(url, data=data, method="POST")
+    if headers:
+        for key, value in headers.items():
+            req.add_header(key, value)
     try:
         with urllib.request.urlopen(req, timeout=5) as resp:
             body = resp.read().decode("utf-8", errors="replace")
@@ -49,13 +53,14 @@ def main() -> int:
     parser.add_argument("-o", "--overlay", help="Overlay filename to activate")
     parser.add_argument("-s", "--snapshot", action="store_true", help="Trigger snapshot capture")
     parser.add_argument("-c", "--clear", action="store_true", help="Clear all overlays")
+    parser.add_argument("--story", help="Set story text for the display")
     parser.add_argument("--host", default="localhost", help="Server host (default: localhost)")
     parser.add_argument("--port", default="5050", help="Server port (default: 5050)")
     args = parser.parse_args()
 
-    actions = int(bool(args.overlay)) + int(args.snapshot) + int(args.clear)
+    actions = int(bool(args.overlay)) + int(args.snapshot) + int(args.clear) + int(bool(args.story))
     if actions != 1:
-        parser.error("Specify exactly one action: -o, -s, or -c")
+        parser.error("Specify exactly one action: -o, -s, -c, or --story")
 
     base = f"http://{args.host}:{args.port}"
 
@@ -74,6 +79,12 @@ def main() -> int:
     if args.clear:
         url = f"{base}/api/overlay/reset"
         return post(url)
+
+    if args.story:
+        url = f"{base}/api/story"
+        payload = json.dumps({"text": args.story}).encode("utf-8")
+        headers = {"Content-Type": "application/json"}
+        return post(url, payload, headers)
 
     return 0
 
