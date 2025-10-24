@@ -7,46 +7,46 @@
     "offset_y": 50.0
   },
   "XC2.png": {
-    "scale": 0.9,
+    "scale": 1.12,
     "y_offset": 0.55,
     "x_anchor": 0.5,
-    "offset_x": 0.0,
+    "offset_x": 150.0,
     "offset_y": 0.0
   },
   "XC3.png": {
     "scale": 0.9,
     "y_offset": 0.55,
     "x_anchor": 0.5,
-    "offset_x": 0.0,
-    "offset_y": 0.0
+    "offset_x": 80.0,
+    "offset_y": 50.0
   },
   "XCA1.png": {
     "scale": 0.9,
     "y_offset": 0.55,
     "x_anchor": 0.5,
     "offset_x": 0.0,
-    "offset_y": 0.0
+    "offset_y": 55.0
   },
   "XCH1.png": {
-    "scale": 0.9,
+    "scale": 0.56,
     "y_offset": 0.55,
     "x_anchor": 0.5,
-    "offset_x": 0.0,
-    "offset_y": 0.0
+    "offset_x": -100.0,
+    "offset_y": 100.0
   },
   "XCH2.png": {
     "scale": 0.9,
     "y_offset": 0.55,
     "x_anchor": 0.5,
-    "offset_x": 0.0,
-    "offset_y": 0.0
+    "offset_x": 80.0,
+    "offset_y": 70.0
   },
   "XCH3.png": {
     "scale": 0.9,
     "y_offset": 0.55,
     "x_anchor": 0.5,
-    "offset_x": 0.0,
-    "offset_y": 0.0
+    "offset_x": 80.0,
+    "offset_y": 30.0
   },
   "YD1.png": {
     "scale": 2.42,

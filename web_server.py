@@ -18,6 +18,7 @@ state = {
     "snapshots_dir": os.path.join(os.path.dirname(__file__), "snapshots"),
     "overlays": [],
     "current_idx": 0,
+    "_overlays_signature": (),
     "overlay_lookup": {},
     "active_overlays": [],
     "show_face_box": False,
@@ -40,6 +41,26 @@ def ensure_snapshot_dir():
     directory = state.get("snapshots_dir")
     if directory:
         os.makedirs(directory, exist_ok=True)
+
+
+def compute_overlays_signature(directory):
+    if not directory or not os.path.isdir(directory):
+        return ()
+    try:
+        entries = os.listdir(directory)
+    except OSError:
+        return ()
+    signature = []
+    for name in sorted(entries):
+        if not name.lower().endswith('.png') and name.lower() != 'config.json':
+            continue
+        path = os.path.join(directory, name)
+        try:
+            stat = os.stat(path)
+        except OSError:
+            continue
+        signature.append((name, int(stat.st_mtime), int(stat.st_size)))
+    return tuple(signature)
 
 
 def next_snapshot_path():
@@ -78,10 +99,15 @@ def list_overlay_names():
     return [ov.get("name") for ov in state.get("overlays", [])]
 
 
-def reload_overlays():
+def reload_overlays(force=False):
     directory = state.get("overlays_dir")
+    signature = compute_overlays_signature(directory)
+    if not force and signature == state.get("_overlays_signature"):
+        return
+
     overlays = load_overlays(directory) if directory and os.path.isdir(directory) else []
     state["overlays"] = overlays
+    state["_overlays_signature"] = signature
     refresh_overlay_lookup()
     active = state.get("active_overlays", []) or []
     state["active_overlays"] = [name for name in active if get_overlay_entry(name)]
@@ -119,6 +145,7 @@ def persist_overlays_config():
     with open(tmp_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
     os.replace(tmp_path, cfg_path)
+    state["_overlays_signature"] = compute_overlays_signature(directory)
     refresh_overlay_lookup()
     return True
 
@@ -589,7 +616,7 @@ def api_nudge_action(action):
         ok = persist_overlays_config()
         set_nudge_message('Overlay config saved.' if ok else 'Failed to save overlay config.')
     elif action == 'reload':
-        reload_overlays()
+        reload_overlays(force=True)
         target = ensure_nudge_target()
         if not target:
             return jsonify(
