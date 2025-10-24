@@ -110,8 +110,8 @@ def persist_overlays_config():
             "scale": float(cfg.get("scale", 0.9)),
             "y_offset": float(cfg.get("y_offset", 0.55)),
             "x_anchor": float(cfg.get("x_anchor", 0.5)),
-            "offset_x": int(cfg.get("offset_x", 0)),
-            "offset_y": int(cfg.get("offset_y", 0)),
+            "offset_x": round(float(cfg.get("offset_x", 0.0)), 3),
+            "offset_y": round(float(cfg.get("offset_y", 0.0)), 3),
         }
         if "description" in cfg:
             data[name]["description"] = cfg["description"]
@@ -146,8 +146,8 @@ def get_overlay_config_snapshot(name):
         "scale": float(cfg.get("scale", 0.9)),
         "y_offset": float(cfg.get("y_offset", 0.55)),
         "x_anchor": float(cfg.get("x_anchor", 0.5)),
-        "offset_x": int(cfg.get("offset_x", 0)),
-        "offset_y": int(cfg.get("offset_y", 0)),
+        "offset_x": float(cfg.get("offset_x", 0.0)),
+        "offset_y": float(cfg.get("offset_y", 0.0)),
     }
 
 
@@ -271,8 +271,13 @@ def capture_loop():
                     aspect = img.shape[0] / img.shape[1]
                     overlay_h = int(overlay_w * aspect)
 
-                    overlay_x = int(x + (w * x_anchor) - (overlay_w * x_anchor) + cfg.get("offset_x", 0))
-                    overlay_y = int(y + int(h * y_offset) + cfg.get("offset_y", 0))
+                    offset_x_pct = float(cfg.get("offset_x", 0.0))
+                    offset_y_pct = float(cfg.get("offset_y", 0.0))
+                    offset_x_px = int(round((offset_x_pct / 100.0) * (w / 2.0)))
+                    offset_y_px = int(round((offset_y_pct / 100.0) * (h / 2.0)))
+
+                    overlay_x = int(x + (w * x_anchor) - (overlay_w * x_anchor) + offset_x_px)
+                    overlay_y = int(y + int(h * y_offset) + offset_y_px)
 
                     frame = overlay_transparent(frame, img, overlay_x, overlay_y, (overlay_w, overlay_h))
 
@@ -503,24 +508,65 @@ def api_nudge_action(action):
     cfg = entry.setdefault('config', {})
     action = (action or '').lower()
 
-    pixel_step = 2
+    def extract_numeric_value():
+        data = request.get_json(silent=True)
+        if isinstance(data, dict) and 'value' in data:
+            raw = data['value']
+        else:
+            raw = request.form.get('value', request.args.get('value'))
+        if raw is None or raw == '':
+            return None
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            return None
+
+    offset_step = 5.0
     scale_step = 0.02
     anchor_step = 0.01
     y_step = 0.01
 
     handled = True
     if action == 'offset_up':
-        cfg['offset_y'] = int(cfg.get('offset_y', 0)) - pixel_step
-        set_nudge_message(f"offset_y={cfg['offset_y']}")
+        cfg['offset_y'] = round(float(cfg.get('offset_y', 0.0)) - offset_step, 3)
+        set_nudge_message(f"offset_y={cfg['offset_y']}%")
     elif action == 'offset_down':
-        cfg['offset_y'] = int(cfg.get('offset_y', 0)) + pixel_step
-        set_nudge_message(f"offset_y={cfg['offset_y']}")
+        cfg['offset_y'] = round(float(cfg.get('offset_y', 0.0)) + offset_step, 3)
+        set_nudge_message(f"offset_y={cfg['offset_y']}%")
     elif action == 'offset_left':
-        cfg['offset_x'] = int(cfg.get('offset_x', 0)) - pixel_step
-        set_nudge_message(f"offset_x={cfg['offset_x']}")
+        cfg['offset_x'] = round(float(cfg.get('offset_x', 0.0)) - offset_step, 3)
+        set_nudge_message(f"offset_x={cfg['offset_x']}%")
     elif action == 'offset_right':
-        cfg['offset_x'] = int(cfg.get('offset_x', 0)) + pixel_step
-        set_nudge_message(f"offset_x={cfg['offset_x']}")
+        cfg['offset_x'] = round(float(cfg.get('offset_x', 0.0)) + offset_step, 3)
+        set_nudge_message(f"offset_x={cfg['offset_x']}%")
+    elif action == 'set_offset_x':
+        value = extract_numeric_value()
+        if value is None:
+            set_nudge_message('Provide numeric value for offset_x.')
+            return jsonify(
+                success=False,
+                nudge=True,
+                target=target,
+                config=get_overlay_config_snapshot(target),
+                message=state.get('nudge_message', ''),
+                nudge_message=state.get('nudge_message', ''),
+            ), 400
+        cfg['offset_x'] = round(float(value), 3)
+        set_nudge_message(f"offset_x={cfg['offset_x']}%")
+    elif action == 'set_offset_y':
+        value = extract_numeric_value()
+        if value is None:
+            set_nudge_message('Provide numeric value for offset_y.')
+            return jsonify(
+                success=False,
+                nudge=True,
+                target=target,
+                config=get_overlay_config_snapshot(target),
+                message=state.get('nudge_message', ''),
+                nudge_message=state.get('nudge_message', ''),
+            ), 400
+        cfg['offset_y'] = round(float(value), 3)
+        set_nudge_message(f"offset_y={cfg['offset_y']}%")
     elif action == 'scale_up':
         cfg['scale'] = round(float(cfg.get('scale', 0.9)) + scale_step, 3)
         set_nudge_message(f"scale={cfg['scale']}")
@@ -606,4 +652,5 @@ if __name__ == '__main__':
     # start capture thread
     t = threading.Thread(target=capture_loop, daemon=True)
     t.start()
-    app.run(host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PUMPKIN_PORT', '5000'))
+    app.run(host='0.0.0.0', port=port)

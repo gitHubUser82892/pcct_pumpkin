@@ -30,6 +30,14 @@
   <div id="nudgePanel" style="display:none; margin-top:14px;">
     <div style="margin-bottom:6px;"><strong>Nudge Target:</strong> <span id="nudgeTargetLabel">none</span></div>
     <div id="nudgeConfigValues" style="margin-bottom:6px; font-size:13px; color:#ccc;">config not loaded</div>
+    <div style="margin-bottom:8px;">
+      <label style="margin-right:10px;">Offset X (%):
+        <input type="number" id="offsetXInput" step="1" min="-200" max="200" oninput="onOffsetInput('x', this.value)">
+      </label>
+      <label>Offset Y (%):
+        <input type="number" id="offsetYInput" step="1" min="-200" max="200" oninput="onOffsetInput('y', this.value)">
+      </label>
+    </div>
     <div>
       <button onclick="applyNudge('offset_up')">Up</button>
     </div>
@@ -64,17 +72,26 @@
   let nudgeConfig = null;
   let nudgeMessage = '';
   let nudgeCooldownUntil = 0;
+  const offsetSetTimers = { x: null, y: null };
 
-  function applyNudge(action){
+  function applyNudge(action, value){
     if(!nudgeMode || !action){
       return;
     }
     const now = Date.now();
-    if(now < nudgeCooldownUntil){
-      return;
+    const hasPayload = value !== undefined;
+    if(!hasPayload){
+      if(now < nudgeCooldownUntil){
+        return;
+      }
+      nudgeCooldownUntil = now + 200;
     }
-    nudgeCooldownUntil = now + 200;
-    fetch('/api/nudge/'+encodeURIComponent(action), {method:'POST'})
+    const opts = {method:'POST'};
+    if(hasPayload){
+      opts.headers = {'Content-Type':'application/json'};
+      opts.body = JSON.stringify({value});
+    }
+    fetch('/api/nudge/'+encodeURIComponent(action), opts)
       .then(r=>r.json())
       .then(res=>{
         if(res.nudge !== undefined){
@@ -107,16 +124,14 @@
     }
     if(!nudgeMode || currentMode !== 'dev'){
       panel.style.display = 'none';
+      updateOffsetInputs();
       return;
     }
     panel.style.display = 'block';
     label.textContent = nudgeTarget ? stripExt(nudgeTarget) : 'none';
-    if(nudgeConfig){
-      cfgBox.textContent = `scale ${nudgeConfig.scale.toFixed(3)} | y ${nudgeConfig.y_offset.toFixed(3)} | anchor ${nudgeConfig.x_anchor.toFixed(3)} | offx ${nudgeConfig.offset_x} | offy ${nudgeConfig.offset_y}`;
-    } else {
-      cfgBox.textContent = 'config not loaded';
-    }
+    renderNudgeConfigSummary();
     notice.textContent = nudgeMessage || '';
+    updateOffsetInputs();
   }
   function toggleNudge(){
     fetch('/api/toggle_nudge', {method:'POST'})
@@ -254,6 +269,80 @@
     }
     updateActiveOverlayLabel();
     updateNudgePanel();
+  }
+
+  function formatOffset(value){
+    const num = Number(value);
+    if(!Number.isFinite(num)){
+      return '0';
+    }
+    return num.toFixed(3).replace(/\.0+$/,'').replace(/\.([0-9]*[1-9])0+$/,'.$1');
+  }
+
+  function renderNudgeConfigSummary(){
+    const cfgBox = document.getElementById('nudgeConfigValues');
+    if(!cfgBox){
+      return;
+    }
+    if(nudgeConfig){
+      cfgBox.textContent = `scale ${nudgeConfig.scale.toFixed(3)} | y ${nudgeConfig.y_offset.toFixed(3)} | anchor ${nudgeConfig.x_anchor.toFixed(3)} | offx ${formatOffset(nudgeConfig.offset_x)}% | offy ${formatOffset(nudgeConfig.offset_y)}%`;
+    } else {
+      cfgBox.textContent = 'config not loaded';
+    }
+  }
+
+  function updateOffsetInputs(){
+    const inputX = document.getElementById('offsetXInput');
+    const inputY = document.getElementById('offsetYInput');
+    if(!inputX || !inputY){
+      return;
+    }
+    if(!nudgeMode || currentMode !== 'dev'){
+      inputX.disabled = true;
+      inputY.disabled = true;
+      return;
+    }
+    if(!nudgeConfig){
+      inputX.value = '';
+      inputY.value = '';
+      inputX.disabled = true;
+      inputY.disabled = true;
+      return;
+    }
+    inputX.disabled = false;
+    inputY.disabled = false;
+    const active = document.activeElement;
+    if(active !== inputX){
+      inputX.value = formatOffset(nudgeConfig.offset_x ?? 0);
+    }
+    if(active !== inputY){
+      inputY.value = formatOffset(nudgeConfig.offset_y ?? 0);
+    }
+  }
+
+  function onOffsetInput(axis, raw){
+    if(currentMode !== 'dev' || !nudgeMode || !nudgeConfig){
+      return;
+    }
+    if(offsetSetTimers[axis]){
+      clearTimeout(offsetSetTimers[axis]);
+    }
+    const parsed = parseFloat(raw);
+    if(Number.isNaN(parsed)){
+      return;
+    }
+    const value = Math.round(parsed * 1000) / 1000;
+    if(axis === 'x'){
+      nudgeConfig.offset_x = value;
+    } else {
+      nudgeConfig.offset_y = value;
+    }
+    renderNudgeConfigSummary();
+    updateOffsetInputs();
+    offsetSetTimers[axis] = setTimeout(()=>{
+      applyNudge(axis === 'x' ? 'set_offset_x' : 'set_offset_y', value);
+      offsetSetTimers[axis] = null;
+    }, 200);
   }
 
   // Poll status every second

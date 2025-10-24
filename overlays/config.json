@@ -1,18 +1,172 @@
 {
+  "XC1.png": {
+    "scale": 0.8,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 150.0,
+    "offset_y": 50.0
+  },
+  "XC2.png": {
+    "scale": 0.9,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": 0.0
+  },
+  "XC3.png": {
+    "scale": 0.9,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": 0.0
+  },
+  "XCA1.png": {
+    "scale": 0.9,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": 0.0
+  },
+  "XCH1.png": {
+    "scale": 0.9,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": 0.0
+  },
+  "XCH2.png": {
+    "scale": 0.9,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": 0.0
+  },
+  "XCH3.png": {
+    "scale": 0.9,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": 0.0
+  },
+  "YD1.png": {
+    "scale": 2.42,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": -300.0
+  },
+  "YD2.png": {
+    "scale": 1.02,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 35.0,
+    "offset_y": -220.0
+  },
+  "YD3.png": {
+    "scale": 1.2,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": -340.0
+  },
+  "YD4.png": {
+    "scale": 1.62,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": -350.0
+  },
+  "YD5.png": {
+    "scale": 1.06,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": -150.0
+  },
+  "YP1.png": {
+    "scale": 1.0,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": -140.0
+  },
+  "YP2.png": {
+    "scale": 1.12,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": -330.0
+  },
+  "YP3.png": {
+    "scale": 1.0,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": -155.0
+  },
+  "YP4.png": {
+    "scale": 1.34,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": -320.0
+  },
+  "YP5.png": {
+    "scale": 1.6,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": -163.0
+  },
+  "YW1.png": {
+    "scale": 1.94,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": -370.0
+  },
+  "YW2.png": {
+    "scale": 1.5,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": -330.0
+  },
+  "YW3.png": {
+    "scale": 1.88,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": -400.0
+  },
+  "YW4.png": {
+    "scale": 1.56,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": -380.0
+  },
+  "YW5.png": {
+    "scale": 1.54,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": -340.0
+  },
   "fangs.png": {
     "scale": 0.64,
     "y_offset": 0.55,
     "x_anchor": 0.5,
-    "offset_x": 2,
-    "offset_y": 6,
+    "offset_x": 2.0,
+    "offset_y": 6.0,
     "description": "Fangs positioned around lower third of face"
   },
   "horns.png": {
     "scale": 1.16,
     "y_offset": -0.7,
     "x_anchor": 0.5,
-    "offset_x": 0,
-    "offset_y": -8,
+    "offset_x": 0.0,
+    "offset_y": -8.0,
     "description": "Horns positioned above the forehead/head"
   }
 }

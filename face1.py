@@ -3,10 +3,23 @@ import json
 import cv2
 import numpy as np
 
+
+def _resolve_haarcascade():
+    candidates = []
+    data_path = getattr(getattr(cv2, "data", None), "haarcascades", None)
+    if data_path:
+        candidates.append(os.path.join(data_path, "haarcascade_frontalface_default.xml"))
+    # legacy Ubuntu path retained for compatibility with older installs
+    candidates.append("/usr/share/opencv4/haarcascades/haarcascade_frontalface_default.xml")
+
+    for path in candidates:
+        if path and os.path.isfile(path):
+            return path
+    raise FileNotFoundError("Could not locate haarcascade_frontalface_default.xml; install opencv-data")
+
+
 # Haar cascade face detector (bundled with OpenCV)
-face_cascade = cv2.CascadeClassifier(
-    "/usr/share/opencv4/haarcascades/haarcascade_frontalface_default.xml"
-)
+face_cascade = cv2.CascadeClassifier(_resolve_haarcascade())
 
 
 def overlay_transparent(background, overlay, x, y, overlay_size=None):
@@ -227,8 +240,8 @@ def main():
                 "scale": c.get("scale", 0.9),
                 "y_offset": c.get("y_offset", 0.55),
                 "x_anchor": c.get("x_anchor", 0.5),
-                "offset_x": int(c.get("offset_x", 0)),
-                "offset_y": int(c.get("offset_y", 0)),
+                "offset_x": round(float(c.get("offset_x", 0.0)), 3),
+                "offset_y": round(float(c.get("offset_y", 0.0)), 3),
                 # preserve description if present
                 **({"description": c.get("description")} if c.get("description") else {}),
             }
@@ -274,18 +287,22 @@ def main():
                 aspect = img.shape[0] / img.shape[1]
                 overlay_h = int(overlay_w * aspect)
 
-                overlay_x = int(x + (w * x_anchor) - (overlay_w * x_anchor))
-                overlay_y = int(y + int(h * y_offset))
+                offset_x_pct = float(cfg.get("offset_x", 0.0))
+                offset_y_pct = float(cfg.get("offset_y", 0.0))
+                offset_x_px = int(round((offset_x_pct / 100.0) * (w / 2.0)))
+                offset_y_px = int(round((offset_y_pct / 100.0) * (h / 2.0)))
 
-                # apply pixel nudges if present
-                overlay_x = int(overlay_x + cfg.get("offset_x", 0))
-                overlay_y = int(overlay_y + cfg.get("offset_y", 0))
+                overlay_x = int(x + (w * x_anchor) - (overlay_w * x_anchor) + offset_x_px)
+                overlay_y = int(y + int(h * y_offset) + offset_y_px)
 
                 frame = overlay_transparent(frame, img, overlay_x, overlay_y, (overlay_w, overlay_h))
 
                 if nudge_mode:
                     # show current config for the active overlay
-                    info = f"scale={scale:.2f} y_off={y_offset:.2f} x_anchor={x_anchor:.2f} offx={cfg.get('offset_x',0)} offy={cfg.get('offset_y',0)}"
+                    info = (
+                        f"scale={scale:.2f} y_off={y_offset:.2f} x_anchor={x_anchor:.2f} "
+                        f"offx={cfg.get('offset_x', 0)}% offy={cfg.get('offset_y', 0)}%"
+                    )
                     cv2.putText(frame, info, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 0), 2)
 
         # Draw overlay name/status
@@ -314,21 +331,21 @@ def main():
             if overlays:
                 if nudge_mode:
                     # move offset left
-                    overlays[current_idx]["config"]["offset_x"] = overlays[current_idx]["config"].get("offset_x", 0) - 2
+                    overlays[current_idx]["config"]["offset_x"] = round(overlays[current_idx]["config"].get("offset_x", 0.0) - 5.0, 3)
                 else:
                     current_idx = (current_idx - 1) % len(overlays)
         elif key == 83 or key == 2555904:  # right arrow
             if overlays:
                 if nudge_mode:
-                    overlays[current_idx]["config"]["offset_x"] = overlays[current_idx]["config"].get("offset_x", 0) + 2
+                    overlays[current_idx]["config"]["offset_x"] = round(overlays[current_idx]["config"].get("offset_x", 0.0) + 5.0, 3)
                 else:
                     current_idx = (current_idx + 1) % len(overlays)
         elif key == 82 or key == 2490368:  # up arrow
             if overlays and nudge_mode:
-                overlays[current_idx]["config"]["offset_y"] = overlays[current_idx]["config"].get("offset_y", 0) - 2
+                overlays[current_idx]["config"]["offset_y"] = round(overlays[current_idx]["config"].get("offset_y", 0.0) - 5.0, 3)
         elif key == 84 or key == 2621440:  # down arrow
             if overlays and nudge_mode:
-                overlays[current_idx]["config"]["offset_y"] = overlays[current_idx]["config"].get("offset_y", 0) + 2
+                overlays[current_idx]["config"]["offset_y"] = round(overlays[current_idx]["config"].get("offset_y", 0.0) + 5.0, 3)
         elif overlays and nudge_mode and (key & 0xFF in (ord('+'), ord('='))):
             c = overlays[current_idx]["config"]
             c["scale"] = round(c.get("scale", 1.0) + 0.02, 3)

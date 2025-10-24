@@ -1,3 +1,5 @@
 #!/bin/bash
 cd "$(dirname "$0")"
-/usr/bin/python3 web_server.py
+: "${PUMPKIN_PORT:=5050}"
+export PUMPKIN_PORT
+exec "$(pwd)"/.venv/bin/python web_server.py

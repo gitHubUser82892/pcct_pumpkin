@@ -50,7 +50,7 @@ def main() -> int:
     parser.add_argument("-s", "--snapshot", action="store_true", help="Trigger snapshot capture")
     parser.add_argument("-c", "--clear", action="store_true", help="Clear all overlays")
     parser.add_argument("--host", default="localhost", help="Server host (default: localhost)")
-    parser.add_argument("--port", default="5000", help="Server port (default: 5000)")
+    parser.add_argument("--port", default="5050", help="Server port (default: 5050)")
     args = parser.parse_args()
 
     actions = int(bool(args.overlay)) + int(args.snapshot) + int(args.clear)
