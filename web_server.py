@@ -1,6 +1,9 @@
 import os
 import io
 import json
+import shlex
+import subprocess
+import sys
 import threading
 import time
 from flask import Flask, render_template, Response, request, jsonify
@@ -36,7 +39,85 @@ state = {
     "last_snapshot_path": None,
     "story_text": "",
     "story_updated": None,
+    "smoothed_face": None,
+    "face_missing_frames": 0,
 }
+
+
+STORY_SCRIPT_ENV = "PUMPKIN_STORY_SCRIPT"
+DEFAULT_STORY_SCRIPT = os.path.join(os.path.dirname(__file__), "generate_story.py")
+
+
+def resolve_story_script_command():
+    configured = os.environ.get(STORY_SCRIPT_ENV)
+    if configured:
+        cmd = shlex.split(configured)
+        if cmd:
+            return cmd
+    if DEFAULT_STORY_SCRIPT and os.path.exists(DEFAULT_STORY_SCRIPT):
+        if DEFAULT_STORY_SCRIPT.lower().endswith('.py'):
+            interpreter = sys.executable or "python3"
+            return [interpreter, DEFAULT_STORY_SCRIPT]
+        return [DEFAULT_STORY_SCRIPT]
+    return None
+
+
+def invoke_story_script(payload):
+    command = resolve_story_script_command()
+    if not command:
+        return False, None, (
+            "Story generator script not configured. Set the PUMPKIN_STORY_SCRIPT environment "
+            "variable to the command that should be executed."
+        ), None
+
+    timeout_setting = os.environ.get("PUMPKIN_STORY_TIMEOUT", "45")
+    try:
+        timeout_value = float(timeout_setting)
+    except (TypeError, ValueError):
+        timeout_value = 45.0
+
+    try:
+        completed = subprocess.run(
+            command,
+            input=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+            capture_output=True,
+            check=False,
+            timeout=timeout_value,
+        )
+    except FileNotFoundError:
+        return False, None, f"Story generator command not found: {command[0]}", None
+    except Exception as exc:  # pragma: no cover - defensive
+        return False, None, f"Failed to start story generator: {exc}", None
+
+    stdout = completed.stdout.decode("utf-8", errors="replace").strip()
+    stderr = completed.stderr.decode("utf-8", errors="replace").strip()
+
+    if completed.returncode != 0:
+        details = {}
+        if stdout:
+            details["stdout"] = stdout[:1000]
+        if stderr:
+            details["stderr"] = stderr[:1000]
+        error = f"Story generator exited with status {completed.returncode}."
+        return False, None, error, details
+
+    if stdout:
+        try:
+            parsed = json.loads(stdout)
+        except json.JSONDecodeError:
+            parsed = None
+        if isinstance(parsed, dict) and "text" in parsed:
+            text = str(parsed["text"]).strip()
+            if text:
+                return True, text, None, None
+        text = stdout.strip()
+        if text:
+            return True, text, None, None
+
+    if stderr:
+        return False, None, "Story generator did not return any text.", {"stderr": stderr[:1000]}
+
+    return False, None, "Story generator did not produce output.", None
 
 
 def ensure_snapshot_dir():
@@ -278,8 +359,53 @@ def capture_loop():
 
         chosen = select_best_face(faces, frame.shape[1], frame.shape[0])
 
+        smoothing_alpha = 0.6
+        hold_frames = 4
+        max_jump_ratio = 0.22
+        smoothed = state.get('smoothed_face')
+
         if chosen is not None:
-            x, y, w, h = chosen
+            if smoothed is None:
+                smoothed = tuple(float(v) for v in chosen)
+            else:
+                sx, sy, sw, sh = smoothed
+                cx_prev = sx + sw / 2.0
+                cy_prev = sy + sh / 2.0
+                cw_prev = sw
+                ch_prev = sh
+                cx_new = chosen[0] + chosen[2] / 2.0
+                cy_new = chosen[1] + chosen[3] / 2.0
+                jump_x = abs(cx_new - cx_prev)
+                jump_y = abs(cy_new - cy_prev)
+                if (
+                    jump_x > frame.shape[1] * max_jump_ratio
+                    or jump_y > frame.shape[0] * max_jump_ratio
+                ):
+                    smoothed = tuple(float(v) for v in chosen)
+                else:
+                    smoothed = tuple(
+                        (1.0 - smoothing_alpha) * smoothed[i] + smoothing_alpha * chosen[i]
+                        for i in range(4)
+                    )
+            state['smoothed_face'] = smoothed
+            state['face_missing_frames'] = 0
+        else:
+            if smoothed is not None:
+                missing = state.get('face_missing_frames', 0) + 1
+                if missing <= hold_frames:
+                    state['face_missing_frames'] = missing
+                else:
+                    smoothed = None
+                    state['smoothed_face'] = None
+                    state['face_missing_frames'] = missing
+
+        if smoothed is not None:
+            x, y, w, h = [int(round(v)) for v in smoothed]
+            if w <= 1 or h <= 1:
+                smoothed = None
+                state['smoothed_face'] = None
+                state['face_missing_frames'] = 0
+                continue
             if state["show_face_box"]:
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), state["face_box_thickness"])
 
@@ -654,6 +780,41 @@ def api_nudge_action(action):
         message=state.get('nudge_message', ''),
         nudge_message=state.get('nudge_message', ''),
     )
+
+
+@app.route('/api/story_generate', methods=['POST'])
+def api_story_generate():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        data = {}
+
+    def sanitize(value):
+        if value is None:
+            return ""
+        text = str(value)
+        return text.strip()
+
+    payload = {
+        "name": sanitize(data.get("name")),
+        "character": sanitize(data.get("character")),
+        "food": sanitize(data.get("food")),
+    }
+
+    ok, text, error, details = invoke_story_script(payload)
+    if not ok or not text:
+        response = {"success": False, "error": error or "Unable to generate story."}
+        if details:
+            if isinstance(details, dict) and details.get("stdout"):
+                response["stdout"] = details["stdout"]
+            if isinstance(details, dict) and details.get("stderr"):
+                response["stderr"] = details["stderr"]
+        status_code = 500 if error else 400
+        return jsonify(response), status_code
+
+    state['story_text'] = text
+    state['story_updated'] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+
+    return jsonify(success=True, text=state['story_text'], updated=state['story_updated'])
 
 
 @app.route('/api/story', methods=['GET', 'POST'])

@@ -5,33 +5,68 @@
   <title>Pumpkin AI - Stream</title>
   <style>
     body { background:#111; color:#eee; font-family: Arial, sans-serif; margin:0; }
-    .page { display:flex; align-items:flex-start; justify-content:center; gap:28px; max-width:1200px; margin:0 auto; padding:24px; box-sizing:border-box; }
-    .story-pane { flex:1; max-width:45%; text-align:left; }
-    .story-heading { font-size:38px; font-weight:700; line-height:1.3; margin:0 0 28px; }
-    .story-box { border:2px solid #444; border-radius:16px; min-height:220px; background:rgba(255,255,255,0.04); color:#f5f5f5; font-size:30px; padding:28px; box-sizing:border-box; word-wrap:break-word; white-space:pre-wrap; }
+  .page { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; width:100%; max-width:none; margin:0 auto; padding:20px 20px; box-sizing:border-box; }
+    .story-pane { flex:1; max-width:50%; text-align:left; }
+  .story-sentence { font-size:34px; font-weight:500; line-height:1.3; display:flex; flex-wrap:wrap; align-items:center; gap:16px; margin-bottom:28px; color:#ff7518; }
+    .story-sentence span { white-space:nowrap; }
+    .story-sentence .story-input,
+    .story-sentence .story-select { font-size:34px; padding:20px 24px; border-radius:16px; border:2px solid #555; background:#1a1a1a; color:#fdfdfd; min-width:240px; box-sizing:border-box; }
+    .story-sentence .story-select { min-width:240px; }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
+    .story-box { border:2px solid #444; border-radius:18px; min-height:280px; background:rgba(255,255,255,0.04); color:#f5f5f5; font-size:34px; padding:36px; box-sizing:border-box; word-wrap:break-word; white-space:pre-wrap; }
     .story-box.story-box--empty { color:#888; font-style:italic; }
-    .video-pane { flex:1; max-width:55%; text-align:center; }
+    .story-actions { display:flex; flex-wrap:wrap; gap:18px; margin-bottom:26px; }
+  .story-actions button { font-size:32px; padding:20px 34px; border-radius:16px; background:#ff7518; color:#111; border:none; cursor:pointer; font-weight:700; margin:0; }
+    .story-actions button:hover { background:#ff8b3d; }
+    .video-pane { flex:1; max-width:50%; text-align:center; }
     img { max-width: 100%; height: auto; border: 1px solid #333; border-radius:12px; }
     .controls { margin-top: 10px }
     button { margin: 0 6px; padding: 8px 14px; font-size: 14px }
     .controls-row { margin-bottom:8px; }
     h1 { margin-top:0; }
     @media (max-width: 900px) {
-      .page { flex-direction: column; align-items: stretch; }
+  .page { flex-direction: column; align-items: stretch; padding:18px 16px; }
       .story-pane, .video-pane { max-width:100%; }
-      .story-heading { font-size:32px; }
-      .story-box { font-size:24px; }
+  .story-sentence { font-size:26px; font-weight:500; color:#ff7518; }
+    .story-sentence .story-input,
+    .story-sentence .story-select { font-size:26px; padding:16px 18px; min-width:180px; }
+    .story-box { font-size:28px; }
+    .story-actions button { width:100%; }
     }
   </style>
 </head>
 <body>
   <div class="page">
     <div class="story-pane">
-      <div class="story-heading">I am a [witch, pumpkin, devil] and I love [chips, chocolate, candy]</div>
+      <div class="story-sentence">
+        <span>My name is</span>
+        <label class="sr-only" for="storyNameInput">Enter visitor name</label>
+        <input id="storyNameInput" class="story-input" type="text" placeholder="Enter name" oninput="onStoryNameInput(this.value)" />
+        <span>I am a</span>
+        <label class="sr-only" for="storyCharacterSelect">Select character</label>
+        <select id="storyCharacterSelect" class="story-select" onchange="onCharacterSelect(this.value)">
+          <option value="">character</option>
+          <option value="witch">witch</option>
+          <option value="pumpkin">pumpkin</option>
+          <option value="devil">devil</option>
+        </select>
+        <span>and I love</span>
+        <label class="sr-only" for="storyFoodSelect">Select favorite food</label>
+        <select id="storyFoodSelect" class="story-select" onchange="onFoodSelect(this.value)">
+          <option value="">food</option>
+          <option value="chips">chips</option>
+          <option value="chocolate">chocolate</option>
+          <option value="candy">candy</option>
+        </select>
+        <span>.</span>
+      </div>
+      <div class="story-actions">
+        <button type="button" onclick="handleGenerateStory()">Generate Story</button>
+      </div>
       <div id="storyBox" class="story-box story-box--empty">Waiting for story...</div>
     </div>
     <div class="video-pane">
-      <h1>Pumpkin AI</h1>
+      <h1 style="color:#ff7518;">Pumpkin AI</h1>
       <img id="stream" src="/stream" alt="video stream">
 
       <div class="controls">
@@ -39,7 +74,6 @@
           <button id="modeBtn" onclick="toggleMode()">Switch to Dev</button>
           <span id="prodControls" style="display:inline-block">
             <button id="snapshotBtn" onclick="triggerSnapshot()">Snapshot</button>
-            <button id="resetBtn" onclick="resetProd()">Reset</button>
           </span>
           <span id="devControls" style="display:none">
             <span id="overlayButtons" style="display:inline-block"></span>
@@ -98,6 +132,18 @@
   let nudgeCooldownUntil = 0;
   const offsetSetTimers = { x: null, y: null };
   let storyText = '';
+  let storyNameInput = '';
+  let storyCharacter = '';
+  let storyFood = '';
+  let storyGenerating = false;
+  const characterOverlayMap = { witch: 'YW', pumpkin: 'YP', devil: 'YD' };
+  const foodOverlayMap = { chips: 'XC', chocolate: 'XCH', candy: 'XCA' };
+  let characterOverlayPrefix = '';
+  let foodOverlayPrefix = '';
+  let selectedCharacterOverlay = null;
+  let selectedFoodOverlay = null;
+  let overlaySyncPromise = Promise.resolve();
+  let storyOverlayInFlight = false;
 
   function applyNudge(action, value){
     if(!nudgeMode || !action){
@@ -198,27 +244,157 @@
   }
 
   function addOverlay(name){
-    fetch('/api/overlay/'+encodeURIComponent(name), {method:'POST'})
-      .then(r=>r.json())
+    return fetch('/api/overlay/'+encodeURIComponent(name), {method:'POST'})
+      .then(r=>r.json().catch(()=>({})))
       .then(s=>{
-        if(s.active_overlays){
+        if(s && Array.isArray(s.active_overlays)){
           activeOverlays = s.active_overlays;
         }
         updateUi();
+        return true;
       })
-      .catch(()=>{});
+      .catch(err=>{
+        console.error('Failed to add overlay', err);
+        return false;
+      });
   }
 
   function clearOverlays(){
-    fetch('/api/overlay/reset', {method:'POST'})
-      .then(r=>r.json())
+    return fetch('/api/overlay/reset', {method:'POST'})
+      .then(r=>r.json().catch(()=>({})))
       .then(s=>{
-        if(s.active_overlays){
+        if(s && Array.isArray(s.active_overlays)){
           activeOverlays = s.active_overlays;
+        } else {
+          activeOverlays = [];
         }
         updateUi();
+        return true;
       })
-      .catch(()=>{});
+      .catch(err=>{
+        console.error('Failed to clear overlays', err);
+        return false;
+      });
+  }
+
+  function overlayMatchesPrefix(name, prefix){
+    if(!name || !prefix){
+      return false;
+    }
+    const upperName = name.toUpperCase();
+    const upperPrefix = prefix.toUpperCase();
+    if(!upperName.startsWith(upperPrefix)){
+      return false;
+    }
+    if(upperPrefix === 'XC'){
+      const nextChar = upperName.charAt(upperPrefix.length);
+      return nextChar >= '0' && nextChar <= '9';
+    }
+    return true;
+  }
+
+  function pickOverlayForPrefix(prefix, current){
+    if(!prefix){
+      return null;
+    }
+    const upper = prefix.toUpperCase();
+    const matches = overlayCatalog.filter(name => overlayMatchesPrefix(name, upper));
+    if(!matches.length){
+      if(overlayCatalog.length){
+        console.warn('No overlays found for prefix', prefix);
+      }
+      return null;
+    }
+    if(current && matches.includes(current)){
+      return current;
+    }
+    const index = Math.floor(Math.random() * matches.length);
+    return matches[index];
+  }
+
+  function applyStoryOverlays(){
+    overlaySyncPromise = overlaySyncPromise
+      .then(()=>{
+        storyOverlayInFlight = true;
+        const desired = [];
+
+        if(characterOverlayPrefix){
+          const choice = pickOverlayForPrefix(characterOverlayPrefix, selectedCharacterOverlay);
+          selectedCharacterOverlay = choice;
+          if(choice){
+            desired.push(choice);
+          }
+        } else {
+          selectedCharacterOverlay = null;
+        }
+
+        if(foodOverlayPrefix){
+          const choice = pickOverlayForPrefix(foodOverlayPrefix, selectedFoodOverlay);
+          selectedFoodOverlay = choice;
+          if(choice){
+            desired.push(choice);
+          }
+        } else {
+          selectedFoodOverlay = null;
+        }
+
+        if(!desired.length){
+          selectedCharacterOverlay = null;
+          selectedFoodOverlay = null;
+          return clearOverlays();
+        }
+
+        return clearOverlays()
+          .then(()=>{
+            return desired.reduce((chain, name)=>{
+              const base = stripExt(name);
+              return chain.then(()=>addOverlay(base));
+            }, Promise.resolve());
+          });
+      })
+      .then(result=>{
+        storyOverlayInFlight = false;
+        return result;
+      })
+      .catch(err=>{
+        storyOverlayInFlight = false;
+        console.error('Story overlay update failed:', err);
+      });
+    return overlaySyncPromise;
+  }
+
+  function onStoryNameInput(value){
+    storyNameInput = (value || '').trim();
+  }
+
+  function onCharacterSelect(value){
+    const normalized = value || '';
+    storyCharacter = normalized;
+    const newPrefix = (characterOverlayMap[normalized] || '').toUpperCase();
+    if(newPrefix !== characterOverlayPrefix){
+      characterOverlayPrefix = newPrefix;
+      if(!newPrefix || !overlayMatchesPrefix(selectedCharacterOverlay, newPrefix)){
+        selectedCharacterOverlay = null;
+      }
+    } else if(newPrefix && selectedCharacterOverlay && !overlayMatchesPrefix(selectedCharacterOverlay, newPrefix)){
+      selectedCharacterOverlay = null;
+    }
+    applyStoryOverlays();
+  }
+
+  function onFoodSelect(value){
+    const normalized = value || '';
+    storyFood = normalized;
+    const newPrefix = (foodOverlayMap[normalized] || '').toUpperCase();
+    if(newPrefix !== foodOverlayPrefix){
+      foodOverlayPrefix = newPrefix;
+      if(!newPrefix || !overlayMatchesPrefix(selectedFoodOverlay, newPrefix)){
+        selectedFoodOverlay = null;
+      }
+    } else if(newPrefix && selectedFoodOverlay && !overlayMatchesPrefix(selectedFoodOverlay, newPrefix)){
+      selectedFoodOverlay = null;
+    }
+    applyStoryOverlays();
   }
 
   function updateActiveOverlayLabel(){
@@ -236,19 +412,63 @@
   }
 
   function triggerSnapshot(){
-    fetch('/api/prod_snapshot', {method:'POST'})
+    return fetch('/api/prod_snapshot', {method:'POST'})
       .then(()=>{
         prodFrozen = false;
         prodWaiting = true;
+        updateUi();
+      })
+      .catch(err=>{
+        console.error('Snapshot request failed:', err);
+      });
+  }
+
+  function unfreezeProd(){
+    return fetch('/api/prod_reset', {method:'POST'})
+      .then(()=>{
+        prodFrozen = false;
+        prodWaiting = false;
         updateUi();
       });
   }
 
   function resetProd(){
-    fetch('/api/prod_reset', {method:'POST'})
+    return unfreezeProd()
       .then(()=>{
-        prodFrozen = false;
-        prodWaiting = false;
+        storyText = '';
+        updateStoryBox();
+        storyCharacter = '';
+        storyFood = '';
+        characterOverlayPrefix = '';
+        foodOverlayPrefix = '';
+        selectedCharacterOverlay = null;
+        selectedFoodOverlay = null;
+
+        const charEl = document.getElementById('storyCharacterSelect');
+        if(charEl){
+          charEl.value = '';
+        }
+        const foodEl = document.getElementById('storyFoodSelect');
+        if(foodEl){
+          foodEl.value = '';
+        }
+
+        const overlayPromise = applyStoryOverlays();
+        const storyClearPromise = fetch('/api/story', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({text: ''}),
+        }).catch(err=>{
+          console.error('Story clear request failed:', err);
+        });
+
+        return Promise.all([overlayPromise, storyClearPromise]);
+      })
+      .then(()=>{
+        updateUi();
+      })
+      .catch(err=>{
+        console.error('Reset request failed:', err);
         updateUi();
       });
   }
@@ -268,7 +488,6 @@
       devControls.style.display = 'none';
       prodControls.style.display = 'inline-block';
       snapshotBtn.disabled = prodFrozen || prodWaiting;
-      resetBtn.disabled = !prodFrozen && !prodWaiting;
       if(fpsBox){
         fpsBox.style.display = 'none';
       }
@@ -279,6 +498,9 @@
       if(fpsBox){
         fpsBox.style.display = 'block';
       }
+    }
+    if(resetBtn){
+      resetBtn.disabled = false;
     }
     if(clearBtn){
       clearBtn.disabled = activeOverlays.length === 0;
@@ -399,6 +621,76 @@
       .catch(()=>{});
   }
 
+  function handleGenerateStory(){
+    if(storyGenerating){
+      return;
+    }
+    const button = document.querySelector('.story-actions button');
+    storyGenerating = true;
+    if(button){
+      button.disabled = true;
+      button.textContent = 'Generating...';
+    }
+
+    const box = document.getElementById('storyBox');
+    if(box){
+      box.textContent = 'Generating story...';
+      box.classList.remove('story-box--empty');
+    }
+
+    if(currentMode === 'prod'){
+      let chain = Promise.resolve();
+      if(prodFrozen){
+        chain = chain.then(()=>unfreezeProd());
+      }
+      if(!prodWaiting){
+        chain = chain.then(()=>triggerSnapshot());
+      }
+      chain.catch(err=>{
+        console.error('Snapshot preparation failed:', err);
+      });
+    }
+
+    const payload = {
+      name: storyNameInput,
+      character: storyCharacter,
+      food: storyFood,
+    };
+
+    fetch('/api/story_generate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if(data && typeof data.text === 'string'){
+          storyText = data.text;
+          updateStoryBox();
+          return;
+        }
+        if(data && data.error){
+          console.error('Story generation failed:', data.error);
+          if(box){
+            box.textContent = `Story generation failed: ${data.error}`;
+          }
+        }
+      })
+      .catch(err => {
+        console.error('Story generation error:', err);
+        if(box){
+          box.textContent = 'Story generation failed: network error.';
+        }
+      })
+      .finally(() => {
+        storyGenerating = false;
+        if(button){
+          button.disabled = false;
+          button.textContent = 'Generate Story';
+        }
+      });
+  }
+
   // Poll status every second
   setInterval(()=>{
     fetch('/api/status')
@@ -406,11 +698,13 @@
       .then(s=>{
         document.getElementById('fps').textContent = s.fps + ' FPS';
         const catalog = Array.isArray(s.overlays) ? s.overlays : [];
-        if(JSON.stringify(catalog) !== JSON.stringify(overlayCatalog)){
+        const catalogChanged = JSON.stringify(catalog) !== JSON.stringify(overlayCatalog);
+        if(catalogChanged){
           overlayCatalog = catalog;
           rebuildOverlayButtons(overlayCatalog);
         }
         activeOverlays = Array.isArray(s.active_overlays) ? s.active_overlays : [];
+        const activeSet = new Set(activeOverlays);
         nudgeMode = !!s.nudge;
         if(Object.prototype.hasOwnProperty.call(s, 'nudge_target')){
           nudgeTarget = s.nudge_target;
@@ -428,6 +722,43 @@
         currentMode = s.mode;
         prodFrozen = !!s.prod_frozen;
         prodWaiting = !!s.prod_waiting;
+
+        let overlayNeedsSync = false;
+        if(catalogChanged){
+          if(selectedCharacterOverlay && !overlayCatalog.includes(selectedCharacterOverlay)){
+            selectedCharacterOverlay = null;
+            overlayNeedsSync = true;
+          }
+          if(selectedFoodOverlay && !overlayCatalog.includes(selectedFoodOverlay)){
+            selectedFoodOverlay = null;
+            overlayNeedsSync = true;
+          }
+        }
+
+        if(selectedCharacterOverlay && !activeSet.has(selectedCharacterOverlay)){
+          overlayNeedsSync = true;
+        }
+        if(selectedFoodOverlay && !activeSet.has(selectedFoodOverlay)){
+          overlayNeedsSync = true;
+        }
+
+        if(!selectedCharacterOverlay && characterOverlayPrefix){
+          const hasCharacterMatch = overlayCatalog.some(name=>overlayMatchesPrefix(name, characterOverlayPrefix));
+          if(hasCharacterMatch){
+            overlayNeedsSync = true;
+          }
+        }
+        if(!selectedFoodOverlay && foodOverlayPrefix){
+          const hasFoodMatch = overlayCatalog.some(name=>overlayMatchesPrefix(name, foodOverlayPrefix));
+          if(hasFoodMatch){
+            overlayNeedsSync = true;
+          }
+        }
+
+        if(overlayNeedsSync && !storyOverlayInFlight){
+          applyStoryOverlays();
+        }
+
         updateUi();
       })
       .catch(()=>{});
@@ -452,7 +783,28 @@
   // initialize UI to match defaults
   updateUi();
   updateNudgePanel();
+  const initialNameEl = document.getElementById('storyNameInput');
+  if(initialNameEl){
+    storyNameInput = initialNameEl.value.trim();
+  }
+  const initialCharacterEl = document.getElementById('storyCharacterSelect');
+  const initialFoodEl = document.getElementById('storyFoodSelect');
+  storyCharacter = initialCharacterEl ? (initialCharacterEl.value || '') : '';
+  storyFood = initialFoodEl ? (initialFoodEl.value || '') : '';
+  characterOverlayPrefix = (characterOverlayMap[storyCharacter] || '').toUpperCase();
+  foodOverlayPrefix = (foodOverlayMap[storyFood] || '').toUpperCase();
+  selectedCharacterOverlay = null;
+  selectedFoodOverlay = null;
+  applyStoryOverlays();
   </script>
+  <div style="padding:20px;
+              display:flex;
+              justify-content:center;">
+    <button type="button" id="resetBtn" onclick="resetProd()"
+            style="font-size:28px; padding:16px 28px; border-radius:16px; background:#ff7518; color:#111; border:none; cursor:pointer; font-weight:700;">
+      Reset
+    </button>
+  </div>
   <div id="fpsBox" style="position:fixed; right:10px; top:10px; color:#0f0; font-weight:bold">FPS: <span id="fps">-</span></div>
 </body>
 </html>

@@ -227,6 +227,8 @@ def main():
     nudge_mode = False
     show_face_box = True
     face_box_thickness = 1
+    smoothed_face = None
+    missing_frames = 0
 
     cfg_path = os.path.join(overlays_dir, "config.json")
 
@@ -268,8 +270,46 @@ def main():
             # faces is a list of (x,y,w,h)
             chosen = max(faces, key=lambda r: r[2] * r[3])
 
+        smoothing_alpha = 0.6
+        hold_frames = 4
+        max_jump_ratio = 0.22
+
         if chosen is not None:
-            x, y, w, h = chosen
+            if smoothed_face is None:
+                smoothed_face = tuple(float(v) for v in chosen)
+            else:
+                sx, sy, sw, sh = smoothed_face
+                cx_prev = sx + sw / 2.0
+                cy_prev = sy + sh / 2.0
+                cx_new = chosen[0] + chosen[2] / 2.0
+                cy_new = chosen[1] + chosen[3] / 2.0
+                jump_x = abs(cx_new - cx_prev)
+                jump_y = abs(cy_new - cy_prev)
+                if (
+                    jump_x > frame.shape[1] * max_jump_ratio
+                    or jump_y > frame.shape[0] * max_jump_ratio
+                ):
+                    smoothed_face = tuple(float(v) for v in chosen)
+                else:
+                    smoothed_face = tuple(
+                        (1.0 - smoothing_alpha) * smoothed_face[i] + smoothing_alpha * chosen[i]
+                        for i in range(4)
+                    )
+            missing_frames = 0
+        else:
+            if smoothed_face is not None:
+                missing_frames += 1
+                if missing_frames > hold_frames:
+                    smoothed_face = None
+            else:
+                missing_frames = 0
+
+        if smoothed_face is not None:
+            x, y, w, h = [int(round(v)) for v in smoothed_face]
+            if w <= 1 or h <= 1:
+                smoothed_face = None
+                missing_frames = 0
+                continue
             # Draw face rectangle for debugging (toggleable)
             if show_face_box:
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), face_box_thickness)

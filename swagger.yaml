@@ -255,6 +255,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/story_generate:
+    post:
+      summary: Generate story text using external LLM script
+      operationId: generateStory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoryGenerateRequest'
+      responses:
+        '200':
+          description: Story generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoryGenerateResponse'
+        '400':
+          description: Invalid input payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Story generator script failed or is not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
     StatusResponse:
@@ -382,5 +411,35 @@ components:
           type: string
           description: Text to display in the story panel
       required:
+        - text
+      additionalProperties: false
+    StoryGenerateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name entered by the visitor
+        character:
+          type: string
+          description: Selected character type
+        food:
+          type: string
+          description: Favorite food choice
+      additionalProperties: false
+    StoryGenerateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        text:
+          type: string
+          description: Generated story text
+        updated:
+          type: string
+          format: date-time
+          description: Timestamp the story was updated
+      required:
+        - success
         - text
       additionalProperties: false
