@@ -1,3 +1,5 @@
 flask
 opencv-python
 numpy
+requests
+llama-cpp-python
