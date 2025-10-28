@@ -1,17 +1,438 @@
 import os
 import io
 import json
-import shlex
-import subprocess
-import sys
 import threading
 import time
-from flask import Flask, render_template, Response, request, jsonify
+import random
+from flask import Flask, render_template, Response, request, jsonify, send_from_directory
 import cv2
 import numpy as np
 
 # Import processing helpers from face1 (we'll reuse some functions)
 from face1 import overlay_transparent, load_overlays, face_cascade
+
+# LLM imports
+import requests
+
+try:
+    from llama_cpp import Llama
+    LLAMA_CPP_AVAILABLE = True
+except ImportError:
+    LLAMA_CPP_AVAILABLE = False
+    print("Warning: llama-cpp-python not available. llama.cpp features will be disabled.")
+
+# Check if Ollama is available
+try:
+    import requests
+    OLLAMA_AVAILABLE = True
+    print("Ollama support: Available (using requests)")
+except ImportError:
+    OLLAMA_AVAILABLE = False
+    print("Warning: Ollama not available. Install ollama package.")
+
+# Story templates for Halloween stories
+STORY_TEMPLATES = [
+    # Spooky
+    "{name} haunts the office in a {costume}, lurking near the {treat}. Employees scream!",
+    "Dressed as a {costume}, {name} casts a spooky shadow while reaching for a {treat}.",
+    "The office was never the same after {name} came as a {costume}, bringing a mysterious {treat}.",
+    "On Halloween, {name} transformed the break room into a spooky scene with their {costume} and a {treat}.",
+    # Funny
+    "{name} in a {costume} couldn't stop laughing while tripping over a pile of {treat}s.",
+    "The real treat was {name}'s {costume}, especially when they danced for candy!",
+    "When the boss asked for a report, {name} in a {costume} just handed over a {treat} instead.",
+    "Everyone expected a scare, but {name} brought laughs in their {costume} and a bag of {treat}s.",
+    # Halloweeny
+    "It was a classic Halloween in the office with {name} as a {costume}, handing out {treat}s.",
+    "{name}'s desk was the place to be for Halloween, featuring a {costume} and a big bowl of {treat}s.",
+    "The sight of {name} in a {costume} brought Halloween spirit, especially with their {treat} stash.",
+    "Legends say {name} still roams the office in their {costume}, guarding the secret candy {treat}.",
+    # Adventurous
+    "The adventure began when {name} in a {costume} found a mysterious {treat} map in the office.",
+    "{name} donned their {costume} and followed the {treat} trail to uncover office secrets.",
+    "With a {costume} and a brave heart, {name} ventured into the haunted server room for a {treat}.",
+    "It was a race against time as {name} in a {costume} sought the legendary {treat} of the office.",
+]
+
+# LLM instance
+llm_instance = None
+llm_type = None  # 'llama_cpp' or 'ollama'
+prompt_config = None
+debug_config = None
+
+def debug_log(message, category="INFO"):
+    """Log debug messages based on configuration."""
+    if not debug_config or not debug_config.get('enabled', False):
+        return
+    
+    log_level = debug_config.get('log_level', 'INFO')
+    if category == "ERROR" and debug_config.get('show_errors', True):
+        print(f"[DEBUG-ERROR] {message}")
+    elif category == "INFO" and log_level in ["INFO", "DEBUG"]:
+        print(f"[DEBUG-INFO] {message}")
+    elif category == "DEBUG" and log_level == "DEBUG":
+        print(f"[DEBUG-DEBUG] {message}")
+
+def debug_log_prompt(prompt, llm_params=None):
+    """Log prompt and LLM parameters if debug mode is enabled."""
+    if not debug_config or not debug_config.get('enabled', False):
+        return
+    
+    if debug_config.get('show_prompts', True):
+        debug_log(f"Main template: {prompt}")
+    
+    if debug_config.get('show_llm_parameters', True) and llm_params:
+        debug_log(f"LLM parameters: {llm_params}")
+
+def debug_log_story_generation(name, costume, treat, story):
+    """Log story generation details if debug mode is enabled."""
+    if not debug_config or not debug_config.get('enabled', False):
+        return
+    
+    if debug_config.get('show_story_generation', True):
+        debug_log(f"Generating story for: {name} as {costume} with {treat}")
+        debug_log(f"Generated story: {story}")
+
+def debug_log_api_call(endpoint, method="GET", data=None):
+    """Log API calls if debug mode is enabled."""
+    if not debug_config or not debug_config.get('enabled', False):
+        return
+    
+    if debug_config.get('show_api_calls', True):
+        debug_log(f"API Call: {method} {endpoint}")
+        if data:
+            debug_log(f"API Data: {data}")
+
+def load_prompt_config():
+    """Load prompt configuration from file."""
+    global prompt_config, debug_config
+    config_path = os.path.join(os.path.dirname(__file__), "prompt_config.json")
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            prompt_config = json.load(f)
+        
+        # Extract debug configuration
+        debug_config = prompt_config.get('debug_mode', {})
+        
+        print("Prompt configuration loaded successfully.")
+        if debug_config.get('enabled', False):
+            print("Debug mode is ENABLED")
+        return True
+    except Exception as e:
+        print(f"Error loading prompt config: {e}")
+        # Use default configuration
+        prompt_config = {
+            "system_prompt": "You are a creative Halloween story generator for office settings.",
+            "main_prompt_template": "Generate a spooky Halloween story for an office setting. Use these details:\n- Name: {name}\n- Costume: {costume}\n- Treat: {treat}\n\nWrite a creative, spooky Halloween story (2-3 sentences) that incorporates the name, costume, and treat.",
+            "sample_templates": [
+                "In the eerie office, {name} appeared as a {costume}, their presence sending shivers down everyone's spine as they offered mysterious {treat}."
+            ],
+            "llm_parameters": {
+                "max_tokens": 200,
+                "temperature": 0.8,
+                "top_p": 0.9,
+                "stop": ["\n\n", "###", "---"]
+            },
+            "debug_mode": {
+                "enabled": False,
+                "log_level": "INFO",
+                "show_prompts": True,
+                "show_llm_parameters": True,
+                "show_story_generation": True,
+                "show_api_calls": True,
+                "show_errors": True
+            },
+            "fallback_templates": [
+                "{name} haunts the office in a {costume}, lurking near the {treat}. Employees scream!"
+            ]
+        }
+        debug_config = prompt_config.get('debug_mode', {})
+        return False
+
+def save_prompt_config():
+    """Save current prompt configuration to file."""
+    if not prompt_config:
+        return False
+    config_path = os.path.join(os.path.dirname(__file__), "prompt_config.json")
+    try:
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(prompt_config, f, indent=2, ensure_ascii=False)
+        print("Prompt configuration saved successfully.")
+        return True
+    except Exception as e:
+        print(f"Error saving prompt config: {e}")
+        return False
+
+def initialize_llm():
+    """Initialize the local LLM model - try Ollama first, then llama.cpp."""
+    global llm_instance, llm_type
+    
+    # Try Ollama first (easier to use and more reliable)
+    if OLLAMA_AVAILABLE:
+        try:
+            print("Attempting to connect to Ollama...")
+            response = requests.get("http://localhost:11434/api/tags", timeout=2)
+            if response.status_code == 200:
+                print("✓ Connected to Ollama!")
+                llm_type = "ollama"
+                llm_instance = None  # We'll use requests directly for Ollama
+                return True
+        except Exception as e:
+            print(f"Ollama not available: {e}")
+            print("Falling back to llama.cpp...")
+    
+    # Try llama.cpp
+    if LLAMA_CPP_AVAILABLE:
+        try:
+            model_paths = [
+                os.path.join(os.path.dirname(__file__), "models", "llama-2-7b-chat.Q2_K.gguf"),
+                os.path.join(os.path.dirname(__file__), "models", "mistral-7b-instruct-v0.2.Q4_K_M.gguf")
+            ]
+            
+            model_path = None
+            for path in model_paths:
+                if os.path.exists(path):
+                    model_path = path
+                    print(f"Found model: {path}")
+                    break
+            
+            if model_path:
+                print(f"Loading LLM model from: {model_path}")
+                llm_instance = Llama(
+                    model_path=model_path,
+                    n_ctx=2048,
+                    n_threads=4,
+                    verbose=False
+                )
+                llm_type = "llama_cpp"
+                print("✓ LLM initialized successfully (llama.cpp)!")
+                return True
+        except Exception as e:
+            print(f"ERROR initializing llama.cpp: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    print("✗ No LLM backend available. Install ollama or llama-cpp-python.")
+    return False
+
+def generate_story_with_llm(name, costume_display, treat_display):
+    """Generate a Halloween story using the local LLM."""
+    debug_log(f"Generating story for: {name} as {costume_display} with {treat_display}", "DEBUG")
+    
+    if not llm_type:
+        debug_log("LLM not initialized, using fallback story generation.", "ERROR")
+        print("ERROR: LLM not initialized - check if LLM initialized successfully at startup")
+        return generate_story_fallback(name, costume_display, treat_display)
+    
+    if not prompt_config:
+        debug_log("Prompt config not loaded, using fallback story generation.", "ERROR")
+        print("ERROR: Prompt config is None")
+        return generate_story_fallback(name, costume_display, treat_display)
+
+    # Get sample templates from config
+    sample_templates = prompt_config.get('sample_templates', [])
+    
+    # Create a prompt for the LLM using configurable template
+    main_template = prompt_config.get('main_prompt_template', 
+        "Generate a spooky Halloween story for an office setting. Use these details:\n- Name: {name}\n- Costume: {costume}\n- Treat: {treat}\n\nWrite a creative, spooky Halloween story (3-4 sentences or maximum about 90 words) that incorporates the name, costume, and treat.")
+    
+    # Format the examples
+    examples_text = '\n'.join(sample_templates) if sample_templates else ""
+    
+    # Create the full prompt
+    prompt = main_template.format(
+        name=name or 'Someone',
+        costume=costume_display or 'mysterious costume',
+        treat=treat_display or 'mysterious treat',
+        examples=examples_text
+    )
+
+    # Get LLM parameters from config
+    llm_params = prompt_config.get('llm_parameters', {})
+    
+    # Debug logging
+    debug_log_prompt(prompt, llm_params)
+    
+    try:
+        debug_log("Calling LLM to generate story...", "DEBUG")
+        print(f"[DEBUG] Calling LLM ({llm_type}) with prompt length: {len(prompt)} chars")
+        
+        # Call the appropriate LLM backend
+        if llm_type == "ollama":
+            # Use Ollama API
+            response = requests.post(
+                "http://localhost:11434/api/generate",
+                json={
+                    "model": "tinyllama:1.1b",  # or "llama2" or "llama2:7b" or "mistral" or "qwen2.5:0.5b" - customize as needed
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {
+                        "num_predict": llm_params.get('max_tokens', 200),
+                        "temperature": llm_params.get('temperature', 0.8),
+                        "top_p": llm_params.get('top_p', 0.9),
+                        "repeat_penalty": llm_params.get('repeat_penalty', 1.18),
+                        "stop": llm_params.get('stop', ["\n\n", "###", "---"])
+                    }
+                }
+            )
+            response_json = response.json()
+            story = response_json.get('response', '').strip()
+            print(f"[DEBUG] Ollama response: {story[:200] if story else 'EMPTY'}")
+            
+        elif llm_type == "llama_cpp":
+            # Use llama.cpp
+            try:
+                response = llm_instance(
+                    prompt,
+                    max_tokens=llm_params.get('max_tokens', 200),
+                    temperature=llm_params.get('temperature', 0.8),
+                    top_p=llm_params.get('top_p', 0.9),
+                    stop=llm_params.get('stop', ["\n\n", "###", "---"]),
+                    echo=False
+                )
+            except Exception as api_error:
+                print(f"[ERROR] First API call failed: {api_error}")
+                print("[DEBUG] Trying alternative API format...")
+                response = llm_instance(
+                    prompt,
+                    max_tokens=llm_params.get('max_tokens', 200),
+                    temperature=llm_params.get('temperature', 0.8),
+                    top_p=llm_params.get('top_p', 0.9),
+                    stop=llm_params.get('stop', ["\n\n", "###", "---"])
+                )
+        
+        # Parse response based on LLM type
+        if llm_type == "ollama":
+            # story already extracted above
+            pass
+        elif llm_type == "llama_cpp":
+            # Parse llama.cpp response
+            story = None
+            if isinstance(response, dict):
+                print(f"[DEBUG] LLM response keys: {list(response.keys())}")
+                
+                # Try 'choices' format (OpenAI-compatible)
+                if 'choices' in response and len(response['choices']) > 0:
+                    choice = response['choices'][0]
+                    if isinstance(choice, dict):
+                        story = choice.get('text', '').strip()
+                        print(f"[DEBUG] Extracted text from choices: {story[:100] if story else 'EMPTY'}")
+                
+                # Try 'text' key
+                if not story and 'text' in response:
+                    story = response['text'].strip()
+            elif isinstance(response, str):
+                story = response.strip()
+                
+            if not story:
+                print(f"[ERROR] Could not extract story from response: {response}")
+                story = ""
+        
+        print(f"[DEBUG] Extracted story length: {len(story) if story else 0} chars")
+        print(f"[DEBUG] Extracted story preview: {story[:200] if story else 'EMPTY'}")
+        
+        if story and len(story) > 0:
+            debug_log_story_generation(name, costume_display, treat_display, story)
+            debug_log("Story generated successfully using LLM", "INFO")
+            return story
+        else:
+            print("[ERROR] LLM returned empty story!")
+            debug_log("LLM returned empty story", "ERROR")
+            print(f"[ERROR] Full response was: {response}")
+    
+    except Exception as e:
+        print(f"[ERROR] Exception during LLM call: {e}")
+        debug_log(f"Error generating story with LLM: {e}", "ERROR")
+        import traceback
+        traceback.print_exc()
+    
+    # Fallback to template-based generation
+    debug_log("Using fallback story generation", "INFO")
+    return generate_story_fallback(name, costume_display, treat_display)
+
+def generate_story_fallback(name, costume_display, treat_display):
+    """Fallback story generation using templates."""
+    # Use configurable fallback templates if available
+    if prompt_config and 'fallback_templates' in prompt_config:
+        templates = prompt_config['fallback_templates']
+    else:
+        templates = STORY_TEMPLATES
+    
+    template = random.choice(templates)
+    return template.format(
+        name=name or "Someone", 
+        costume=costume_display or "mysterious costume", 
+        treat=treat_display or "mysterious treat"
+    )
+
+def generate_story(name, costume, treat):
+    """Generate a Halloween story using the provided name, costume, and treat."""
+    # Map costume filenames to display names
+    costume_display_map = {
+        "fangs.png": "Fangs",
+        "horns.png": "Horns",
+        "yd1.png": "Yellow Devil 1",
+        "yd2.png": "Yellow Devil 2",
+        "yd3.png": "Yellow Devil 3",
+        "yd4.png": "Yellow Devil 4",
+        "yd5.png": "Yellow Devil 5",
+        "yp1.png": "Yellow Pumpkin 1",
+        "yp2.png": "Yellow Pumpkin 2",
+        "yp3.png": "Yellow Pumpkin 3",
+        "yp4.png": "Yellow Pumpkin 4",
+        "yp5.png": "Yellow Pumpkin 5",
+        "yw1.png": "Yellow Witch 1",
+        "yw2.png": "Yellow Witch 2",
+        "yw3.png": "Yellow Witch 3",
+        "yw4.png": "Yellow Witch 4",
+        "yw5.png": "Yellow Witch 5",
+        "witch": "Witch",
+        "pumpkin": "Pumpkin",
+        "devil": "Devil"
+    }
+
+    # Map treat filenames to display names
+    treat_display_map = {
+        "xca1.png": "Spooky Candy A",
+        "xca2.png": "Spooky Candy B",
+        "xca3.png": "Spooky Candy C",
+        "xca4.png": "Spooky Candy D",
+        "xch1.png": "Chocolate Treat 1",
+        "xch2.png": "Chocolate Treat 2",
+    "xch3.png": "Chocolate Treat 3",
+    "xci1.png": "Chips 1",
+    "xci2.png": "Chips 2",
+    "xci3.png": "Chips 3",
+        "candy": "Candy",
+        "chocolate": "Chocolate",
+        "chips": "Chips"
+    }
+
+    costume_key = (costume or '').strip().lower()
+    treat_key = (treat or '').strip().lower()
+
+    mapped_costume = costume_display_map.get(costume_key)
+    if not mapped_costume:
+        if costume_key.startswith('yw'):
+            mapped_costume = 'Yellow Witch'
+        elif costume_key.startswith('yd'):
+            mapped_costume = 'Yellow Devil'
+        elif costume_key.startswith('yp'):
+            mapped_costume = 'Yellow Pumpkin'
+
+    mapped_treat = treat_display_map.get(treat_key)
+    if not mapped_treat:
+        if treat_key.startswith('xca'):
+            mapped_treat = 'Candy'
+        elif treat_key.startswith('xch'):
+            mapped_treat = 'Chocolate'
+    elif treat_key.startswith('xci'):
+            mapped_treat = 'Chips'
+
+    costume_display = mapped_costume or (costume if costume else "mysterious costume")
+    treat_display = mapped_treat or (treat if treat else "mysterious treat")
+    
+    return generate_story_with_llm(name, costume_display, treat_display)
 
 app = Flask(__name__)
 
@@ -39,85 +460,10 @@ state = {
     "last_snapshot_path": None,
     "story_text": "",
     "story_updated": None,
-    "smoothed_face": None,
-    "face_missing_frames": 0,
+    "user_name": "",
+    "user_costume": "",
+    "user_treat": "",
 }
-
-
-STORY_SCRIPT_ENV = "PUMPKIN_STORY_SCRIPT"
-DEFAULT_STORY_SCRIPT = os.path.join(os.path.dirname(__file__), "generate_story.py")
-
-
-def resolve_story_script_command():
-    configured = os.environ.get(STORY_SCRIPT_ENV)
-    if configured:
-        cmd = shlex.split(configured)
-        if cmd:
-            return cmd
-    if DEFAULT_STORY_SCRIPT and os.path.exists(DEFAULT_STORY_SCRIPT):
-        if DEFAULT_STORY_SCRIPT.lower().endswith('.py'):
-            interpreter = sys.executable or "python3"
-            return [interpreter, DEFAULT_STORY_SCRIPT]
-        return [DEFAULT_STORY_SCRIPT]
-    return None
-
-
-def invoke_story_script(payload):
-    command = resolve_story_script_command()
-    if not command:
-        return False, None, (
-            "Story generator script not configured. Set the PUMPKIN_STORY_SCRIPT environment "
-            "variable to the command that should be executed."
-        ), None
-
-    timeout_setting = os.environ.get("PUMPKIN_STORY_TIMEOUT", "45")
-    try:
-        timeout_value = float(timeout_setting)
-    except (TypeError, ValueError):
-        timeout_value = 45.0
-
-    try:
-        completed = subprocess.run(
-            command,
-            input=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-            capture_output=True,
-            check=False,
-            timeout=timeout_value,
-        )
-    except FileNotFoundError:
-        return False, None, f"Story generator command not found: {command[0]}", None
-    except Exception as exc:  # pragma: no cover - defensive
-        return False, None, f"Failed to start story generator: {exc}", None
-
-    stdout = completed.stdout.decode("utf-8", errors="replace").strip()
-    stderr = completed.stderr.decode("utf-8", errors="replace").strip()
-
-    if completed.returncode != 0:
-        details = {}
-        if stdout:
-            details["stdout"] = stdout[:1000]
-        if stderr:
-            details["stderr"] = stderr[:1000]
-        error = f"Story generator exited with status {completed.returncode}."
-        return False, None, error, details
-
-    if stdout:
-        try:
-            parsed = json.loads(stdout)
-        except json.JSONDecodeError:
-            parsed = None
-        if isinstance(parsed, dict) and "text" in parsed:
-            text = str(parsed["text"]).strip()
-            if text:
-                return True, text, None, None
-        text = stdout.strip()
-        if text:
-            return True, text, None, None
-
-    if stderr:
-        return False, None, "Story generator did not return any text.", {"stderr": stderr[:1000]}
-
-    return False, None, "Story generator did not produce output.", None
 
 
 def ensure_snapshot_dir():
@@ -359,53 +705,8 @@ def capture_loop():
 
         chosen = select_best_face(faces, frame.shape[1], frame.shape[0])
 
-        smoothing_alpha = 0.6
-        hold_frames = 4
-        max_jump_ratio = 0.22
-        smoothed = state.get('smoothed_face')
-
         if chosen is not None:
-            if smoothed is None:
-                smoothed = tuple(float(v) for v in chosen)
-            else:
-                sx, sy, sw, sh = smoothed
-                cx_prev = sx + sw / 2.0
-                cy_prev = sy + sh / 2.0
-                cw_prev = sw
-                ch_prev = sh
-                cx_new = chosen[0] + chosen[2] / 2.0
-                cy_new = chosen[1] + chosen[3] / 2.0
-                jump_x = abs(cx_new - cx_prev)
-                jump_y = abs(cy_new - cy_prev)
-                if (
-                    jump_x > frame.shape[1] * max_jump_ratio
-                    or jump_y > frame.shape[0] * max_jump_ratio
-                ):
-                    smoothed = tuple(float(v) for v in chosen)
-                else:
-                    smoothed = tuple(
-                        (1.0 - smoothing_alpha) * smoothed[i] + smoothing_alpha * chosen[i]
-                        for i in range(4)
-                    )
-            state['smoothed_face'] = smoothed
-            state['face_missing_frames'] = 0
-        else:
-            if smoothed is not None:
-                missing = state.get('face_missing_frames', 0) + 1
-                if missing <= hold_frames:
-                    state['face_missing_frames'] = missing
-                else:
-                    smoothed = None
-                    state['smoothed_face'] = None
-                    state['face_missing_frames'] = missing
-
-        if smoothed is not None:
-            x, y, w, h = [int(round(v)) for v in smoothed]
-            if w <= 1 or h <= 1:
-                smoothed = None
-                state['smoothed_face'] = None
-                state['face_missing_frames'] = 0
-                continue
+            x, y, w, h = chosen
             if state["show_face_box"]:
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), state["face_box_thickness"])
 
@@ -520,6 +821,12 @@ def api_snapshot():
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route('/MeltedMonster-ARPLA.ttf')
+def serve_melted_monster_font():
+    base_dir = os.path.dirname(__file__)
+    return send_from_directory(base_dir, 'MeltedMonster-ARPLA.ttf', mimetype='font/ttf')
 
 
 def gen_frames():
@@ -782,41 +1089,6 @@ def api_nudge_action(action):
     )
 
 
-@app.route('/api/story_generate', methods=['POST'])
-def api_story_generate():
-    data = request.get_json(silent=True)
-    if not isinstance(data, dict):
-        data = {}
-
-    def sanitize(value):
-        if value is None:
-            return ""
-        text = str(value)
-        return text.strip()
-
-    payload = {
-        "name": sanitize(data.get("name")),
-        "character": sanitize(data.get("character")),
-        "food": sanitize(data.get("food")),
-    }
-
-    ok, text, error, details = invoke_story_script(payload)
-    if not ok or not text:
-        response = {"success": False, "error": error or "Unable to generate story."}
-        if details:
-            if isinstance(details, dict) and details.get("stdout"):
-                response["stdout"] = details["stdout"]
-            if isinstance(details, dict) and details.get("stderr"):
-                response["stderr"] = details["stderr"]
-        status_code = 500 if error else 400
-        return jsonify(response), status_code
-
-    state['story_text'] = text
-    state['story_updated'] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
-
-    return jsonify(success=True, text=state['story_text'], updated=state['story_updated'])
-
-
 @app.route('/api/story', methods=['GET', 'POST'])
 def api_story():
     if request.method == 'POST':
@@ -839,6 +1111,191 @@ def api_story():
     )
 
 
+@app.route('/api/update_story', methods=['POST'])
+def api_update_story():
+    """Update story based on user inputs (name, costume, treat)."""
+    data = request.get_json(silent=True)
+    debug_log_api_call('/api/update_story', 'POST', data)
+    
+    if not isinstance(data, dict):
+        debug_log("Invalid JSON data received", "ERROR")
+        return jsonify(success=False, error='Invalid JSON data.'), 400
+    
+    # Extract user inputs
+    name = data.get('name', '').strip()
+    costume = data.get('costume', '').strip()
+    treat = data.get('treat', '').strip()
+    
+    debug_log(f"Updating story with inputs: name='{name}', costume='{costume}', treat='{treat}'")
+    
+    # Update state
+    state['user_name'] = name
+    state['user_costume'] = costume
+    state['user_treat'] = treat
+    
+    # Generate new story
+    story = generate_story(name, costume, treat)
+    state['story_text'] = story
+    state['story_updated'] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+    
+    debug_log(f"Story generated successfully: {story[:100]}...")
+    
+    return jsonify(
+        success=True, 
+        story=story,
+        updated=state['story_updated']
+    )
+
+
+@app.route('/api/prompt_config', methods=['GET', 'POST'])
+def api_prompt_config():
+    """Get or update prompt configuration."""
+    if request.method == 'POST':
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify(success=False, error='Invalid JSON data.'), 400
+        
+        # Update prompt configuration
+        global prompt_config
+        if prompt_config is None:
+            prompt_config = {}
+        
+        # Update specific fields if provided
+        if 'system_prompt' in data:
+            prompt_config['system_prompt'] = data['system_prompt']
+        if 'main_prompt_template' in data:
+            prompt_config['main_prompt_template'] = data['main_prompt_template']
+        if 'sample_templates' in data:
+            prompt_config['sample_templates'] = data['sample_templates']
+        if 'llm_parameters' in data:
+            prompt_config['llm_parameters'] = data['llm_parameters']
+        if 'fallback_templates' in data:
+            prompt_config['fallback_templates'] = data['fallback_templates']
+        
+        # Save configuration
+        if save_prompt_config():
+            return jsonify(success=True, config=prompt_config)
+        else:
+            return jsonify(success=False, error='Failed to save configuration.'), 500
+    
+    # GET request - return current configuration
+    return jsonify(
+        success=True,
+        config=prompt_config or {}
+    )
+
+
+@app.route('/api/prompt_config/reset', methods=['POST'])
+def api_reset_prompt_config():
+    """Reset prompt configuration to defaults."""
+    global prompt_config
+    config_path = os.path.join(os.path.dirname(__file__), "prompt_config.json")
+    
+    # Load default configuration
+    default_config = {
+        "system_prompt": "You are a creative Halloween story generator for office settings. Generate spooky, atmospheric stories that are engaging and fun.",
+        "main_prompt_template": "Generate a spooky Halloween story for an office setting. Use these details:\n- Name: {name}\n- Costume: {costume}\n- Treat: {treat}\n\nHere are some example story styles to inspire you:\n{examples}\n\nWrite a creative, spooky Halloween story (2-3 sentences) that incorporates the name, costume, and treat. Make it atmospheric and engaging for an office Halloween party setting.",
+        "sample_templates": [
+            "In the eerie office, {name} appeared as a {costume}, their presence sending shivers down everyone's spine as they offered mysterious {treat}.",
+            "The office Halloween party took a supernatural turn when {name} arrived dressed as a {costume}, distributing enchanted {treat} that seemed to glow in the darkness.",
+            "Legends spoke of {name}, who would don the {costume} every Halloween, wandering the office corridors with a bag of {treat}, their footsteps echoing through the empty halls."
+        ],
+        "llm_parameters": {
+            "max_tokens": 200,
+            "temperature": 0.8,
+            "top_p": 0.9,
+            "stop": ["\n\n", "###", "---"]
+        },
+        "debug_mode": {
+            "enabled": False,
+            "log_level": "INFO",
+            "show_prompts": True,
+            "show_llm_parameters": True,
+            "show_story_generation": True,
+            "show_api_calls": True,
+            "show_errors": True
+        },
+        "fallback_templates": [
+            "{name} haunts the office in a {costume}, lurking near the {treat}. Employees scream!",
+            "Dressed as a {costume}, {name} casts a spooky shadow while reaching for a {treat}."
+        ]
+    }
+    
+    try:
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(default_config, f, indent=2, ensure_ascii=False)
+        prompt_config = default_config
+        debug_config = default_config.get('debug_mode', {})
+        return jsonify(success=True, config=prompt_config)
+    except Exception as e:
+        return jsonify(success=False, error=f'Failed to reset configuration: {e}'), 500
+
+
+@app.route('/api/debug_mode', methods=['GET', 'POST'])
+def api_debug_mode():
+    """Get or update debug mode configuration."""
+    if request.method == 'POST':
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify(success=False, error='Invalid JSON data.'), 400
+        
+        # Update debug configuration
+        global debug_config, prompt_config
+        if prompt_config and 'debug_mode' in prompt_config:
+            if 'enabled' in data:
+                prompt_config['debug_mode']['enabled'] = bool(data['enabled'])
+            if 'log_level' in data:
+                prompt_config['debug_mode']['log_level'] = data['log_level']
+            if 'show_prompts' in data:
+                prompt_config['debug_mode']['show_prompts'] = bool(data['show_prompts'])
+            if 'show_llm_parameters' in data:
+                prompt_config['debug_mode']['show_llm_parameters'] = bool(data['show_llm_parameters'])
+            if 'show_story_generation' in data:
+                prompt_config['debug_mode']['show_story_generation'] = bool(data['show_story_generation'])
+            if 'show_api_calls' in data:
+                prompt_config['debug_mode']['show_api_calls'] = bool(data['show_api_calls'])
+            if 'show_errors' in data:
+                prompt_config['debug_mode']['show_errors'] = bool(data['show_errors'])
+            
+            debug_config = prompt_config['debug_mode']
+            
+            # Save configuration
+            if save_prompt_config():
+                return jsonify(success=True, debug_config=debug_config)
+            else:
+                return jsonify(success=False, error='Failed to save debug configuration.'), 500
+        
+        return jsonify(success=False, error='Debug configuration not found.'), 404
+    
+    # GET request - return current debug configuration
+    return jsonify(
+        success=True,
+        debug_config=debug_config or {}
+    )
+
+
+@app.route('/api/debug_mode/toggle', methods=['POST'])
+def api_toggle_debug_mode():
+    """Toggle debug mode on/off."""
+    global debug_config, prompt_config
+    
+    if not prompt_config or 'debug_mode' not in prompt_config:
+        return jsonify(success=False, error='Debug configuration not found.'), 404
+    
+    # Toggle debug mode
+    current_state = prompt_config['debug_mode'].get('enabled', False)
+    prompt_config['debug_mode']['enabled'] = not current_state
+    debug_config = prompt_config['debug_mode']
+    
+    # Save configuration
+    if save_prompt_config():
+        new_state = "ENABLED" if debug_config['enabled'] else "DISABLED"
+        debug_log(f"Debug mode {new_state}")
+        return jsonify(success=True, enabled=debug_config['enabled'], message=f"Debug mode {new_state}")
+    else:
+        return jsonify(success=False, error='Failed to save debug configuration.'), 500
+
+
 @app.route('/api/status', methods=['GET'])
 def api_status():
     active = list(state.get('active_overlays', []))
@@ -859,12 +1316,41 @@ def api_status():
         last_snapshot=state.get('last_snapshot_path'),
         story_text=state.get('story_text', ''),
         story_updated=state.get('story_updated'),
+        user_name=state.get('user_name', ''),
+        user_costume=state.get('user_costume', ''),
+        user_treat=state.get('user_treat', ''),
     )
 
 
 if __name__ == '__main__':
+    # Load prompt configuration
+    print("=" * 60)
+    print("Starting Pumpkin AI Server")
+    print("=" * 60)
+    
+    print("\n[1/3] Loading prompt configuration...")
+    load_prompt_config()
+    
+    print(f"\n[2/3] Initializing LLM...")
+    print(f"Ollama available: {OLLAMA_AVAILABLE}")
+    print(f"llama.cpp available: {LLAMA_CPP_AVAILABLE}")
+    
+    llm_init_success = initialize_llm()
+    if llm_init_success:
+        print(f"✓ LLM initialized successfully using {llm_type}!")
+    else:
+        print("✗ LLM initialization failed - will use fallback story generation")
+        print("Tip: Install Ollama (https://ollama.ai) or llama-cpp-python for LLM support")
+    
+    print(f"\n[3/3] Starting web server...")
+    
     # start capture thread
     t = threading.Thread(target=capture_loop, daemon=True)
     t.start()
     port = int(os.environ.get('PUMPKIN_PORT', '5000'))
+    
+    print("\n" + "=" * 60)
+    print(f"Server starting on http://0.0.0.0:{port}")
+    print("=" * 60)
+    
     app.run(host='0.0.0.0', port=port)

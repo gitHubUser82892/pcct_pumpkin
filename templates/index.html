@@ -2,79 +2,378 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Pumpkin AI - Stream</title>
+  <title>🎃 Spooky Pumpkin AI - Halloween Experience</title>
   <style>
-    body { background:#111; color:#eee; font-family: Arial, sans-serif; margin:0; }
-  .page { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; width:100%; max-width:none; margin:0 auto; padding:20px 20px; box-sizing:border-box; }
-    .story-pane { flex:1; max-width:50%; text-align:left; }
-  .story-sentence { font-size:34px; font-weight:500; line-height:1.3; display:flex; flex-wrap:wrap; align-items:center; gap:16px; margin-bottom:28px; color:#ff7518; }
-    .story-sentence span { white-space:nowrap; }
-    .story-sentence .story-input,
-    .story-sentence .story-select { font-size:34px; padding:20px 24px; border-radius:16px; border:2px solid #555; background:#1a1a1a; color:#fdfdfd; min-width:240px; box-sizing:border-box; }
-    .story-sentence .story-select { min-width:240px; }
-    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
-    .story-box { border:2px solid #444; border-radius:18px; min-height:280px; background:rgba(255,255,255,0.04); color:#f5f5f5; font-size:34px; padding:36px; box-sizing:border-box; word-wrap:break-word; white-space:pre-wrap; }
-    .story-box.story-box--empty { color:#888; font-style:italic; }
-    .story-actions { display:flex; flex-wrap:wrap; gap:18px; margin-bottom:26px; }
-  .story-actions button { font-size:32px; padding:20px 34px; border-radius:16px; background:#ff7518; color:#111; border:none; cursor:pointer; font-weight:700; margin:0; }
-    .story-actions button:hover { background:#ff8b3d; }
-    .video-pane { flex:1; max-width:50%; text-align:center; }
-    img { max-width: 100%; height: auto; border: 1px solid #333; border-radius:12px; }
-    .controls { margin-top: 10px }
-    button { margin: 0 6px; padding: 8px 14px; font-size: 14px }
-    .controls-row { margin-bottom:8px; }
-    h1 { margin-top:0; }
-    @media (max-width: 900px) {
-  .page { flex-direction: column; align-items: stretch; padding:18px 16px; }
-      .story-pane, .video-pane { max-width:100%; }
-  .story-sentence { font-size:26px; font-weight:500; color:#ff7518; }
-    .story-sentence .story-input,
-    .story-sentence .story-select { font-size:26px; padding:16px 18px; min-width:180px; }
-    .story-box { font-size:28px; }
-    .story-actions button { width:100%; }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+    @keyframes glow {
+      0%, 100% { box-shadow: 0 0 10px rgba(255, 87, 34, 0.5); }
+      50% { box-shadow: 0 0 20px rgba(255, 87, 34, 0.8); }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.8; }
+      50% { opacity: 1; }
+    }
+    @font-face {
+      font-family: 'MeltedMonster';
+      src: url('/MeltedMonster-ARPLA.ttf') format('truetype');
+      font-display: swap;
+    }
+    body { 
+      background: linear-gradient(135deg, #0a0a0a 0%, #1a0a1a 50%, #0a0a1a 100%);
+      background-attachment: fixed;
+      color: #e0e0e0; 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+      margin: 0;
+      position: relative;
+      min-height: 100vh;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: 
+        radial-gradient(circle at 20% 50%, rgba(139, 0, 0, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(75, 0, 130, 0.1) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .page { 
+      display: flex; 
+      align-items: flex-start; 
+      justify-content: center; 
+      gap: 28px; 
+      max-width: 1400px; 
+      margin: 0 auto; 
+      padding: 24px; 
+      box-sizing: border-box;
+      position: relative;
+      z-index: 1;
+    }
+    .user-input-pane { flex: 0 0 300px; max-width: 300px; }
+    .user-input-form { 
+      background: linear-gradient(145deg, #1a1a1a, #0f0f0f);
+      padding: 20px; 
+      border-radius: 16px; 
+      border: 2px solid rgba(255, 87, 34, 0.3);
+      margin-bottom: 20px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+    .user-input-form h3 { 
+      margin: 0 0 16px; 
+      color: #ff5722; 
+      font-size: 20px;
+      text-shadow: 0 0 10px rgba(255, 87, 34, 0.6);
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+    .input-group { margin-bottom: 12px; }
+    .input-group label { 
+      display: block; 
+      margin-bottom: 6px; 
+      color: #d0a0f0; 
+      font-size: 14px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .input-group input, .input-group select, .input-group textarea { 
+      width: 100%; 
+      padding: 10px; 
+      border-radius: 8px; 
+      border: 2px solid rgba(255, 87, 34, 0.3); 
+      background: #0a0a0a; 
+      color: #e0e0e0; 
+      font-size: 14px; 
+      box-sizing: border-box; 
+      font-family: inherit;
+      transition: all 0.3s ease;
+    }
+    .input-group input:focus, .input-group select:focus, .input-group textarea:focus { 
+      outline: none; 
+      border-color: #ff5722;
+      box-shadow: 0 0 15px rgba(255, 87, 34, 0.3);
+      background: #111;
+    }
+    .input-group textarea { resize: vertical; min-height: 60px; }
+    #updateStoryBtn, #resetExperienceBtn, #snapshotBtn { 
+      width: 100%; 
+      padding: 12px; 
+      background: linear-gradient(145deg, #ff5722, #e64a19);
+      color: white; 
+      border: none; 
+      border-radius: 10px; 
+      font-size: 16px; 
+      font-weight: bold;
+      cursor: pointer; 
+      margin-top: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      box-shadow: 0 4px 15px rgba(255, 87, 34, 0.4);
+      transition: all 0.3s ease;
+    }
+    #updateStoryBtn:hover, #resetExperienceBtn:hover, #snapshotBtn:hover { 
+      background: linear-gradient(145deg, #ff7043, #ff5722);
+      box-shadow: 0 6px 20px rgba(255, 87, 34, 0.6);
+      transform: translateY(-2px);
+    }
+    #updateStoryBtn:active, #resetExperienceBtn:active, #snapshotBtn:active {
+      transform: translateY(0);
+    }
+    #updateStoryBtn:disabled, #resetExperienceBtn:disabled, #snapshotBtn:disabled { 
+      background: #444; 
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    .story-pane { flex: 1; max-width: 45%; text-align: left; }
+    .story-heading-wrapper {
+      border: 3px solid rgba(255, 87, 34, 0.4);
+      border-radius: 20px;
+      background: linear-gradient(145deg, rgba(26, 26, 26, 0.95), rgba(15, 15, 15, 0.95));
+      padding: 18px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 0 25px rgba(255, 87, 34, 0.05);
+      text-align: center;
+      margin: 0 0 20px;
+    }
+    .story-heading { 
+      margin: 0; 
+      color: #ff5722; 
+      font-size: 20px;
+      font-weight: bold;
+      text-shadow: 0 0 10px rgba(255, 87, 34, 0.6);
+      letter-spacing: 1px;
+      text-align: center;
+    }
+    .story-box { 
+      border: 3px solid rgba(255, 87, 34, 0.4); 
+      border-radius: 20px; 
+      min-height: 220px; 
+      background: linear-gradient(145deg, rgba(26, 26, 26, 0.95), rgba(15, 15, 15, 0.95));
+      color: #f5f5f5; 
+      font-size: 30px; 
+      padding: 28px; 
+      box-sizing: border-box; 
+      word-wrap: break-word; 
+      white-space: pre-wrap;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 0 30px rgba(255, 87, 34, 0.05);
+      position: relative;
+      overflow: hidden;
+    }
+    .story-box::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 87, 34, 0.1), transparent);
+      animation: shimmer 3s infinite;
+    }
+    @keyframes shimmer {
+      0% { left: -100%; }
+      100% { left: 100%; }
+    }
+    .story-box.story-box--empty { 
+      color: #666; 
+      font-style: italic;
+      font-size: 24px;
+    }
+    .video-pane { 
+      flex: 1; 
+      max-width: 55%; 
+      text-align: center;
+      position: relative;
+    }
+    img { 
+      max-width: 100%; 
+      height: auto; 
+      border: 3px solid rgba(255, 87, 34, 0.5);
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+      transition: all 0.3s ease;
+    }
+    img:hover {
+      box-shadow: 0 15px 50px rgba(255, 87, 34, 0.4);
+      transform: scale(1.01);
+    }
+    .controls { margin-top: 15px; }
+    button { 
+      margin: 0 6px; 
+      padding: 10px 16px; 
+      font-size: 14px;
+      background: linear-gradient(145deg, #424242, #212121);
+      color: #e0e0e0;
+      border: 2px solid rgba(255, 87, 34, 0.3);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-weight: 600;
+    }
+    button:hover {
+      background: linear-gradient(145deg, #ff5722, #e64a19);
+      border-color: #ff5722;
+      box-shadow: 0 4px 15px rgba(255, 87, 34, 0.4);
+      transform: translateY(-2px);
+    }
+    button:active {
+      transform: translateY(0);
+    }
+    .controls-row { margin-bottom: 8px; }
+    h1 { 
+      margin-top: 0;
+      color: #ff5722;
+      text-shadow: 0 0 20px rgba(255, 87, 34, 0.6);
+      font-weight: 900;
+      font-size: 36px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      font-family: 'MeltedMonster', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    @media (max-width: 1200px) {
+      .page { flex-direction: column; align-items: stretch; }
+      .user-input-pane, .story-pane, .video-pane { max-width: 100%; }
+      .user-input-pane { flex: none; }
+  .story-heading { font-size: 20px; }
+      .story-box { font-size: 24px; }
     }
   </style>
 </head>
 <body>
   <div class="page">
-    <div class="story-pane">
-      <div class="story-sentence">
-        <span>My name is</span>
-        <label class="sr-only" for="storyNameInput">Enter visitor name</label>
-        <input id="storyNameInput" class="story-input" type="text" placeholder="Enter name" oninput="onStoryNameInput(this.value)" />
-        <span>I am a</span>
-        <label class="sr-only" for="storyCharacterSelect">Select character</label>
-        <select id="storyCharacterSelect" class="story-select" onchange="onCharacterSelect(this.value)">
-          <option value="">character</option>
-          <option value="witch">witch</option>
-          <option value="pumpkin">pumpkin</option>
-          <option value="devil">devil</option>
-        </select>
-        <span>and I love</span>
-        <label class="sr-only" for="storyFoodSelect">Select favorite food</label>
-        <select id="storyFoodSelect" class="story-select" onchange="onFoodSelect(this.value)">
-          <option value="">food</option>
-          <option value="chips">chips</option>
-          <option value="chocolate">chocolate</option>
-          <option value="candy">candy</option>
-        </select>
-        <span>.</span>
+    <div class="user-input-pane">
+      <div class="user-input-form">
+        <h3>🎭 Your Spooky Profile</h3>
+        <div class="input-group">
+          <label for="userName">Name:</label>
+          <input type="text" id="userName" name="userName" placeholder="Enter your name">
+        </div>
+        <div class="input-group">
+          <label for="costume">Costume:</label>
+          <select id="costume" name="costume" onchange="onCostumeChange()">
+            <option value="">Costume</option>
+            <option value="witch">Witch</option>
+            <option value="pumpkin">Pumpkin</option>
+            <option value="devil">Devil</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label for="treat">Treat:</label>
+          <select id="treat" name="treat" onchange="onTreatChange()">
+            <option value="">Treat</option>
+            <option value="candy">Candy</option>
+            <option value="chocolate">Chocolate</option>
+            <option value="chips">Chips</option>
+          </select>
+        </div>
+  <button id="updateStoryBtn" onclick="updateStory()">Generate Story</button>
+  <button id="snapshotBtn" onclick="triggerSnapshot()">Snapshot</button>
+  <button id="resetExperienceBtn" onclick="handleReset()">Reset</button>
       </div>
-      <div class="story-actions">
-        <button type="button" onclick="handleGenerateStory()">Generate Story</button>
+      
+      <div class="prompt-config-form" id="promptConfigPanel" style="background:#222; padding:20px; border-radius:12px; border:1px solid #333; margin-top:20px; display:none;">
+        <h3>Prompt Configuration</h3>
+        <div class="input-group">
+          <label for="systemPrompt">System Prompt:</label>
+          <textarea id="systemPrompt" rows="3" placeholder="System prompt for the LLM"></textarea>
+        </div>
+        <div class="input-group">
+          <label for="mainPromptTemplate">Main Prompt Template:</label>
+          <textarea id="mainPromptTemplate" rows="4" placeholder="Main prompt template with {name}, {costume}, {treat}, {examples} placeholders"></textarea>
+        </div>
+        <div class="input-group">
+          <label for="sampleTemplates">Sample Templates (one per line):</label>
+          <textarea id="sampleTemplates" rows="5" placeholder="Sample templates with {name}, {costume}, {treat} placeholders"></textarea>
+        </div>
+        <div class="input-group">
+          <label for="maxTokens">Max Tokens:</label>
+          <input type="number" id="maxTokens" min="50" max="500" value="200">
+        </div>
+        <div class="input-group">
+          <label for="temperature">Temperature:</label>
+          <input type="number" id="temperature" min="0" max="2" step="0.1" value="0.8">
+        </div>
+        <div class="input-group">
+          <label for="topP">Top P:</label>
+          <input type="number" id="topP" min="0" max="1" step="0.1" value="0.9">
+        </div>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+          <button onclick="loadPromptConfig()">Load Config</button>
+          <button onclick="savePromptConfig()">Save Config</button>
+          <button onclick="resetPromptConfig()">Reset to Defaults</button>
+        </div>
+      </div>
+      
+      <div class="debug-config-form" id="debugConfigPanel" style="background:#222; padding:20px; border-radius:12px; border:1px solid #333; margin-top:20px; display:none;">
+        <h3>Debug Mode</h3>
+        <div class="input-group">
+          <label>
+            <input type="checkbox" id="debugEnabled" onchange="toggleDebugMode()">
+            Enable Debug Mode
+          </label>
+        </div>
+        <div class="input-group">
+          <label for="debugLogLevel">Log Level:</label>
+          <select id="debugLogLevel" onchange="updateDebugConfig()">
+            <option value="INFO">INFO</option>
+            <option value="DEBUG">DEBUG</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>
+            <input type="checkbox" id="debugShowPrompts" onchange="updateDebugConfig()">
+            Show Prompts
+          </label>
+        </div>
+        <div class="input-group">
+          <label>
+            <input type="checkbox" id="debugShowLLMParams" onchange="updateDebugConfig()">
+            Show LLM Parameters
+          </label>
+        </div>
+        <div class="input-group">
+          <label>
+            <input type="checkbox" id="debugShowStoryGen" onchange="updateDebugConfig()">
+            Show Story Generation
+          </label>
+        </div>
+        <div class="input-group">
+          <label>
+            <input type="checkbox" id="debugShowAPICalls" onchange="updateDebugConfig()">
+            Show API Calls
+          </label>
+        </div>
+        <div class="input-group">
+          <label>
+            <input type="checkbox" id="debugShowErrors" onchange="updateDebugConfig()">
+            Show Errors
+          </label>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+          <button onclick="loadDebugConfig()">Load Debug Config</button>
+          <button onclick="saveDebugConfig()">Save Debug Config</button>
+          <button onclick="toggleDebugModeAPI()">Toggle Debug Mode</button>
+        </div>
+      </div>
+    </div>
+    <div class="story-pane">
+      <div class="story-heading-wrapper">
+        <div class="story-heading">Your Halloween Story</div>
       </div>
       <div id="storyBox" class="story-box story-box--empty">Waiting for story...</div>
     </div>
     <div class="video-pane">
-      <h1 style="color:#ff7518;">Pumpkin AI</h1>
+      <h1>🎃 Spooky Pumpkin AI 👻</h1>
       <img id="stream" src="/stream" alt="video stream">
 
       <div class="controls">
         <div class="controls-row">
           <button id="modeBtn" onclick="toggleMode()">Switch to Dev</button>
-          <span id="prodControls" style="display:inline-block">
-            <button id="snapshotBtn" onclick="triggerSnapshot()">Snapshot</button>
-          </span>
+          <span id="prodControls" style="display:inline-block"></span>
           <span id="devControls" style="display:none">
             <span id="overlayButtons" style="display:inline-block"></span>
             <button id="clearOverlaysBtn" onclick="clearOverlays()">Disable All Overlays</button>
@@ -132,18 +431,211 @@
   let nudgeCooldownUntil = 0;
   const offsetSetTimers = { x: null, y: null };
   let storyText = '';
-  let storyNameInput = '';
-  let storyCharacter = '';
-  let storyFood = '';
-  let storyGenerating = false;
-  const characterOverlayMap = { witch: 'YW', pumpkin: 'YP', devil: 'YD' };
-  const foodOverlayMap = { chips: 'XC', chocolate: 'XCH', candy: 'XCA' };
-  let characterOverlayPrefix = '';
-  let foodOverlayPrefix = '';
-  let selectedCharacterOverlay = null;
-  let selectedFoodOverlay = null;
+  let userName = '';
+  let userCostume = '';
+  let userTreat = '';
+  const COSTUME_PREFIX_MAP = { witch: 'YW', pumpkin: 'YP', devil: 'YD' };
+  const TREAT_PREFIX_MAP = { candy: 'XCA', chocolate: 'XCH', chips: 'XCI' };
+  const COSTUME_DISPLAY_MAP = { witch: 'Witch', pumpkin: 'Pumpkin', devil: 'Devil' };
+  const TREAT_DISPLAY_MAP = { candy: 'Candy', chocolate: 'Chocolate Treat', chips: 'Chips' };
+  let selectedCostumeOverlay = null;
+  let selectedTreatOverlay = null;
+  let costumeSelection = '';
+  let treatSelection = '';
+  let pendingCostumePrefix = null;
+  let pendingTreatPrefix = null;
   let overlaySyncPromise = Promise.resolve();
-  let storyOverlayInFlight = false;
+
+  function updateStory(){
+    const name = document.getElementById('userName').value.trim();
+    const costume = document.getElementById('costume').value;
+    const treat = document.getElementById('treat').value;
+    
+    userName = name;
+    userCostume = COSTUME_DISPLAY_MAP[costume] || costume;
+    userTreat = TREAT_DISPLAY_MAP[treat] || treat;
+    
+    // Show loading state
+    const storyBox = document.getElementById('storyBox');
+    const updateBtn = document.getElementById('updateStoryBtn');
+  storyBox.innerHTML = '<em>Generating Spooky Story...</em>';
+    storyBox.classList.remove('story-box--empty');
+    updateBtn.disabled = true;
+    updateBtn.textContent = 'Generating...';
+    
+    // Generate story with user inputs
+    const storyData = {
+      name: name || 'Someone',
+      costume: costume,
+      treat: treat
+    };
+
+    fetch('/api/update_story', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(storyData)
+    })
+      .then(r => r.json())
+      .then(data => {
+        if(data.success && data.story){
+          storyText = data.story;
+          updateStoryBox();
+        } else {
+          storyBox.textContent = 'Error generating story. Please try again.';
+          storyBox.classList.add('story-box--empty');
+        }
+      })
+      .catch(err => {
+        console.error('Error updating story:', err);
+        storyBox.textContent = 'Error generating story. Please try again.';
+        storyBox.classList.add('story-box--empty');
+      })
+      .finally(() => {
+        updateBtn.disabled = false;
+        updateBtn.textContent = 'Generate Story';
+      });
+  }
+
+  function loadPromptConfig(){
+    fetch('/api/prompt_config')
+      .then(r => r.json())
+      .then(data => {
+        if(data.success && data.config){
+          const config = data.config;
+          document.getElementById('systemPrompt').value = config.system_prompt || '';
+          document.getElementById('mainPromptTemplate').value = config.main_prompt_template || '';
+          document.getElementById('sampleTemplates').value = (config.sample_templates || []).join('\n');
+          document.getElementById('maxTokens').value = config.llm_parameters?.max_tokens || 200;
+          document.getElementById('temperature').value = config.llm_parameters?.temperature || 0.8;
+          document.getElementById('topP').value = config.llm_parameters?.top_p || 0.9;
+        }
+      })
+      .catch(err => console.error('Error loading prompt config:', err));
+  }
+
+  function savePromptConfig(){
+    const config = {
+      system_prompt: document.getElementById('systemPrompt').value,
+      main_prompt_template: document.getElementById('mainPromptTemplate').value,
+      sample_templates: document.getElementById('sampleTemplates').value.split('\n').filter(line => line.trim()),
+      llm_parameters: {
+        max_tokens: parseInt(document.getElementById('maxTokens').value),
+        temperature: parseFloat(document.getElementById('temperature').value),
+        top_p: parseFloat(document.getElementById('topP').value),
+        stop: ["\n\n", "###", "---"]
+      }
+    };
+    
+    fetch('/api/prompt_config', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(config)
+    })
+    .then(r => r.json())
+    .then(data => {
+      if(data.success){
+        alert('Prompt configuration saved successfully!');
+      } else {
+        alert('Error saving configuration: ' + (data.error || 'Unknown error'));
+      }
+    })
+    .catch(err => {
+      console.error('Error saving prompt config:', err);
+      alert('Error saving configuration');
+    });
+  }
+
+  function resetPromptConfig(){
+    if(confirm('Are you sure you want to reset the prompt configuration to defaults? This will overwrite your current settings.')){
+      fetch('/api/prompt_config/reset', {method: 'POST'})
+        .then(r => r.json())
+        .then(data => {
+          if(data.success){
+            alert('Prompt configuration reset to defaults!');
+            loadPromptConfig(); // Reload the form with new defaults
+          } else {
+            alert('Error resetting configuration: ' + (data.error || 'Unknown error'));
+          }
+        })
+        .catch(err => {
+          console.error('Error resetting prompt config:', err);
+          alert('Error resetting configuration');
+        });
+    }
+  }
+
+  function loadDebugConfig(){
+    fetch('/api/debug_mode')
+      .then(r => r.json())
+      .then(data => {
+        if(data.success && data.debug_config){
+          const config = data.debug_config;
+          document.getElementById('debugEnabled').checked = config.enabled || false;
+          document.getElementById('debugLogLevel').value = config.log_level || 'INFO';
+          document.getElementById('debugShowPrompts').checked = config.show_prompts || false;
+          document.getElementById('debugShowLLMParams').checked = config.show_llm_parameters || false;
+          document.getElementById('debugShowStoryGen').checked = config.show_story_generation || false;
+          document.getElementById('debugShowAPICalls').checked = config.show_api_calls || false;
+          document.getElementById('debugShowErrors').checked = config.show_errors || false;
+        }
+      })
+      .catch(err => console.error('Error loading debug config:', err));
+  }
+
+  function saveDebugConfig(){
+    const config = {
+      enabled: document.getElementById('debugEnabled').checked,
+      log_level: document.getElementById('debugLogLevel').value,
+      show_prompts: document.getElementById('debugShowPrompts').checked,
+      show_llm_parameters: document.getElementById('debugShowLLMParams').checked,
+      show_story_generation: document.getElementById('debugShowStoryGen').checked,
+      show_api_calls: document.getElementById('debugShowAPICalls').checked,
+      show_errors: document.getElementById('debugShowErrors').checked
+    };
+    
+    fetch('/api/debug_mode', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(config)
+    })
+    .then(r => r.json())
+    .then(data => {
+      if(data.success){
+        alert('Debug configuration saved successfully!');
+      } else {
+        alert('Error saving debug configuration: ' + (data.error || 'Unknown error'));
+      }
+    })
+    .catch(err => {
+      console.error('Error saving debug config:', err);
+      alert('Error saving debug configuration');
+    });
+  }
+
+  function toggleDebugMode(){
+    saveDebugConfig();
+  }
+
+  function updateDebugConfig(){
+    saveDebugConfig();
+  }
+
+  function toggleDebugModeAPI(){
+    fetch('/api/debug_mode/toggle', {method: 'POST'})
+      .then(r => r.json())
+      .then(data => {
+        if(data.success){
+          alert(data.message || 'Debug mode toggled!');
+          loadDebugConfig(); // Reload the form with new state
+        } else {
+          alert('Error toggling debug mode: ' + (data.error || 'Unknown error'));
+        }
+      })
+      .catch(err => {
+        console.error('Error toggling debug mode:', err);
+        alert('Error toggling debug mode');
+      });
+  }
 
   function applyNudge(action, value){
     if(!nudgeMode || !action){
@@ -230,6 +722,132 @@
     return name ? name.replace(/\.png$/i, '') : name;
   }
 
+  function selectRandomOverlay(prefix){
+    if(!prefix){
+      return null;
+    }
+    const upperPrefix = prefix.toUpperCase();
+    const matches = overlayCatalog
+      .filter(name => typeof name === 'string' && name.toUpperCase().startsWith(upperPrefix))
+      .map(stripExt);
+    if(!matches.length){
+      return null;
+    }
+    const randomIndex = Math.floor(Math.random() * matches.length);
+    return matches[randomIndex];
+  }
+
+  function syncOverlays(){
+    const overlaysToAdd = [];
+    if(selectedCostumeOverlay){
+      overlaysToAdd.push(selectedCostumeOverlay);
+    }
+    if(selectedTreatOverlay){
+      overlaysToAdd.push(selectedTreatOverlay);
+    }
+    overlaySyncPromise = overlaySyncPromise
+      .catch(() => {})
+      .then(() => fetch('/api/overlay/reset', {method:'POST'}))
+      .then(r => r.json())
+      .then(data => {
+        activeOverlays = Array.isArray(data.active_overlays) ? data.active_overlays : [];
+      })
+      .then(() => overlaysToAdd.reduce((promise, overlayName) => {
+        return promise.then(() => fetch('/api/overlay/' + encodeURIComponent(overlayName), {method:'POST'})
+          .then(r => r.json())
+          .then(result => {
+            if(Array.isArray(result.active_overlays)){
+              activeOverlays = result.active_overlays;
+            }
+          }));
+      }, Promise.resolve()))
+      .then(() => {
+        updateUi();
+      })
+      .catch(err => {
+        console.error('Error syncing overlays:', err);
+        updateUi();
+      });
+    return overlaySyncPromise;
+  }
+
+  function onCostumeChange(){
+    const select = document.getElementById('costume');
+    if(!select){
+      return;
+    }
+    const value = select.value;
+    costumeSelection = value;
+    userCostume = COSTUME_DISPLAY_MAP[value] || value;
+    if(!value){
+      selectedCostumeOverlay = null;
+      pendingCostumePrefix = null;
+      syncOverlays();
+      return;
+    }
+    const prefix = COSTUME_PREFIX_MAP[value] || null;
+    pendingCostumePrefix = prefix;
+    const overlayName = selectRandomOverlay(prefix);
+    if(overlayName){
+      selectedCostumeOverlay = overlayName;
+      pendingCostumePrefix = null;
+    } else {
+      selectedCostumeOverlay = null;
+      console.warn('No overlays found for costume prefix:', prefix);
+    }
+    syncOverlays();
+  }
+
+  function onTreatChange(){
+    const select = document.getElementById('treat');
+    if(!select){
+      return;
+    }
+    const value = select.value;
+    treatSelection = value;
+    userTreat = TREAT_DISPLAY_MAP[value] || value;
+    if(!value){
+      selectedTreatOverlay = null;
+      pendingTreatPrefix = null;
+      syncOverlays();
+      return;
+    }
+    const prefix = TREAT_PREFIX_MAP[value] || null;
+    pendingTreatPrefix = prefix;
+    const overlayName = selectRandomOverlay(prefix);
+    if(overlayName){
+      selectedTreatOverlay = overlayName;
+      pendingTreatPrefix = null;
+    } else {
+      selectedTreatOverlay = null;
+      console.warn('No overlays found for treat prefix:', prefix);
+    }
+    syncOverlays();
+  }
+
+  function maybeApplyPendingSelections(){
+    let needsSync = false;
+    if(pendingCostumePrefix && !selectedCostumeOverlay){
+      const overlayName = selectRandomOverlay(pendingCostumePrefix);
+      if(overlayName){
+        selectedCostumeOverlay = overlayName;
+        pendingCostumePrefix = null;
+        needsSync = true;
+      }
+    }
+    if(pendingTreatPrefix && !selectedTreatOverlay){
+      const overlayName = selectRandomOverlay(pendingTreatPrefix);
+      if(overlayName){
+        selectedTreatOverlay = overlayName;
+        pendingTreatPrefix = null;
+        needsSync = true;
+      }
+    }
+    if(needsSync){
+      syncOverlays();
+    }
+  }
+
   function rebuildOverlayButtons(list){
     const container = document.getElementById('overlayButtons');
     if(!container) return;
@@ -244,157 +862,27 @@
   }
 
   function addOverlay(name){
-    return fetch('/api/overlay/'+encodeURIComponent(name), {method:'POST'})
-      .then(r=>r.json().catch(()=>({})))
+    fetch('/api/overlay/'+encodeURIComponent(name), {method:'POST'})
+      .then(r=>r.json())
       .then(s=>{
-        if(s && Array.isArray(s.active_overlays)){
+        if(s.active_overlays){
           activeOverlays = s.active_overlays;
         }
         updateUi();
-        return true;
       })
-      .catch(err=>{
-        console.error('Failed to add overlay', err);
-        return false;
-      });
+      .catch(()=>{});
   }
 
   function clearOverlays(){
-    return fetch('/api/overlay/reset', {method:'POST'})
-      .then(r=>r.json().catch(()=>({})))
+    fetch('/api/overlay/reset', {method:'POST'})
+      .then(r=>r.json())
       .then(s=>{
-        if(s && Array.isArray(s.active_overlays)){
+        if(s.active_overlays){
           activeOverlays = s.active_overlays;
-        } else {
-          activeOverlays = [];
         }
         updateUi();
-        return true;
       })
-      .catch(err=>{
-        console.error('Failed to clear overlays', err);
-        return false;
-      });
-  }
-
-  function overlayMatchesPrefix(name, prefix){
-    if(!name || !prefix){
-      return false;
-    }
-    const upperName = name.toUpperCase();
-    const upperPrefix = prefix.toUpperCase();
-    if(!upperName.startsWith(upperPrefix)){
-      return false;
-    }
-    if(upperPrefix === 'XC'){
-      const nextChar = upperName.charAt(upperPrefix.length);
-      return nextChar >= '0' && nextChar <= '9';
-    }
-    return true;
-  }
-
-  function pickOverlayForPrefix(prefix, current){
-    if(!prefix){
-      return null;
-    }
-    const upper = prefix.toUpperCase();
-    const matches = overlayCatalog.filter(name => overlayMatchesPrefix(name, upper));
-    if(!matches.length){
-      if(overlayCatalog.length){
-        console.warn('No overlays found for prefix', prefix);
-      }
-      return null;
-    }
-    if(current && matches.includes(current)){
-      return current;
-    }
-    const index = Math.floor(Math.random() * matches.length);
-    return matches[index];
-  }
-
-  function applyStoryOverlays(){
-    overlaySyncPromise = overlaySyncPromise
-      .then(()=>{
-        storyOverlayInFlight = true;
-        const desired = [];
-
-        if(characterOverlayPrefix){
-          const choice = pickOverlayForPrefix(characterOverlayPrefix, selectedCharacterOverlay);
-          selectedCharacterOverlay = choice;
-          if(choice){
-            desired.push(choice);
-          }
-        } else {
-          selectedCharacterOverlay = null;
-        }
-
-        if(foodOverlayPrefix){
-          const choice = pickOverlayForPrefix(foodOverlayPrefix, selectedFoodOverlay);
-          selectedFoodOverlay = choice;
-          if(choice){
-            desired.push(choice);
-          }
-        } else {
-          selectedFoodOverlay = null;
-        }
-
-        if(!desired.length){
-          selectedCharacterOverlay = null;
-          selectedFoodOverlay = null;
-          return clearOverlays();
-        }
-
-        return clearOverlays()
-          .then(()=>{
-            return desired.reduce((chain, name)=>{
-              const base = stripExt(name);
-              return chain.then(()=>addOverlay(base));
-            }, Promise.resolve());
-          });
-      })
-      .then(result=>{
-        storyOverlayInFlight = false;
-        return result;
-      })
-      .catch(err=>{
-        storyOverlayInFlight = false;
-        console.error('Story overlay update failed:', err);
-      });
-    return overlaySyncPromise;
-  }
-
-  function onStoryNameInput(value){
-    storyNameInput = (value || '').trim();
-  }
-
-  function onCharacterSelect(value){
-    const normalized = value || '';
-    storyCharacter = normalized;
-    const newPrefix = (characterOverlayMap[normalized] || '').toUpperCase();
-    if(newPrefix !== characterOverlayPrefix){
-      characterOverlayPrefix = newPrefix;
-      if(!newPrefix || !overlayMatchesPrefix(selectedCharacterOverlay, newPrefix)){
-        selectedCharacterOverlay = null;
-      }
-    } else if(newPrefix && selectedCharacterOverlay && !overlayMatchesPrefix(selectedCharacterOverlay, newPrefix)){
-      selectedCharacterOverlay = null;
-    }
-    applyStoryOverlays();
-  }
-
-  function onFoodSelect(value){
-    const normalized = value || '';
-    storyFood = normalized;
-    const newPrefix = (foodOverlayMap[normalized] || '').toUpperCase();
-    if(newPrefix !== foodOverlayPrefix){
-      foodOverlayPrefix = newPrefix;
-      if(!newPrefix || !overlayMatchesPrefix(selectedFoodOverlay, newPrefix)){
-        selectedFoodOverlay = null;
-      }
-    } else if(newPrefix && selectedFoodOverlay && !overlayMatchesPrefix(selectedFoodOverlay, newPrefix)){
-      selectedFoodOverlay = null;
-    }
-    applyStoryOverlays();
+      .catch(()=>{});
   }
 
   function updateActiveOverlayLabel(){
@@ -412,64 +900,70 @@
   }
 
   function triggerSnapshot(){
-    return fetch('/api/prod_snapshot', {method:'POST'})
+    fetch('/api/prod_snapshot', {method:'POST'})
       .then(()=>{
         prodFrozen = false;
         prodWaiting = true;
         updateUi();
-      })
-      .catch(err=>{
-        console.error('Snapshot request failed:', err);
       });
   }
 
-  function unfreezeProd(){
-    return fetch('/api/prod_reset', {method:'POST'})
-      .then(()=>{
+  function handleReset(){
+    const nameInput = document.getElementById('userName');
+    const costumeSelect = document.getElementById('costume');
+    const treatSelect = document.getElementById('treat');
+  const updateBtn = document.getElementById('updateStoryBtn');
+
+    if(nameInput){
+      nameInput.value = '';
+    }
+    if(costumeSelect){
+      costumeSelect.value = '';
+    }
+    if(treatSelect){
+      treatSelect.value = '';
+    }
+
+    userName = '';
+    userCostume = '';
+    userTreat = '';
+    costumeSelection = '';
+    treatSelection = '';
+    selectedCostumeOverlay = null;
+    selectedTreatOverlay = null;
+    pendingCostumePrefix = null;
+    pendingTreatPrefix = null;
+    storyText = '';
+    updateStoryBox();
+    if(updateBtn){
+      updateBtn.disabled = false;
+      updateBtn.textContent = 'Generate Story';
+    }
+
+    const overlayReset = syncOverlays();
+    const storyReset = fetch('/api/story', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({text: ''})
+    }).catch(err => {
+      console.error('Error clearing story text:', err);
+    });
+
+    fetch('/api/prod_reset', {method:'POST'})
+      .catch(err => {
+        console.error('Error resetting prod mode:', err);
+      })
+      .finally(() => {
         prodFrozen = false;
         prodWaiting = false;
-        updateUi();
-      });
-  }
-
-  function resetProd(){
-    return unfreezeProd()
-      .then(()=>{
-        storyText = '';
-        updateStoryBox();
-        storyCharacter = '';
-        storyFood = '';
-        characterOverlayPrefix = '';
-        foodOverlayPrefix = '';
-        selectedCharacterOverlay = null;
-        selectedFoodOverlay = null;
-
-        const charEl = document.getElementById('storyCharacterSelect');
-        if(charEl){
-          charEl.value = '';
+        const tasks = [overlayReset, storyReset].filter(task => task && typeof task.then === 'function');
+        if(tasks.length){
+          Promise.allSettled(tasks).finally(() => {
+            updateUi();
+          });
+        } else {
+          updateUi();
         }
-        const foodEl = document.getElementById('storyFoodSelect');
-        if(foodEl){
-          foodEl.value = '';
-        }
-
-        const overlayPromise = applyStoryOverlays();
-        const storyClearPromise = fetch('/api/story', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({text: ''}),
-        }).catch(err=>{
-          console.error('Story clear request failed:', err);
-        });
-
-        return Promise.all([overlayPromise, storyClearPromise]);
-      })
-      .then(()=>{
-        updateUi();
-      })
-      .catch(err=>{
-        console.error('Reset request failed:', err);
-        updateUi();
       });
   }
 
@@ -478,18 +972,25 @@
     const devControls = document.getElementById('devControls');
     const prodControls = document.getElementById('prodControls');
     const snapshotBtn = document.getElementById('snapshotBtn');
-    const resetBtn = document.getElementById('resetBtn');
     const fpsBox = document.getElementById('fpsBox');
     const clearBtn = document.getElementById('clearOverlaysBtn');
     const nudgeBtn = document.getElementById('nudgeBtn');
+    const promptConfigPanel = document.getElementById('promptConfigPanel');
+    const debugConfigPanel = document.getElementById('debugConfigPanel');
 
     if(currentMode === 'prod'){
       modeBtn.textContent = 'Switch to Dev';
       devControls.style.display = 'none';
       prodControls.style.display = 'inline-block';
-      snapshotBtn.disabled = prodFrozen || prodWaiting;
       if(fpsBox){
         fpsBox.style.display = 'none';
+      }
+      // Hide dev-only panels in prod mode
+      if(promptConfigPanel){
+        promptConfigPanel.style.display = 'none';
+      }
+      if(debugConfigPanel){
+        debugConfigPanel.style.display = 'none';
       }
     } else {
       modeBtn.textContent = 'Switch to Prod';
@@ -498,9 +999,16 @@
       if(fpsBox){
         fpsBox.style.display = 'block';
       }
+      // Show dev-only panels in dev mode
+      if(promptConfigPanel){
+        promptConfigPanel.style.display = 'block';
+      }
+      if(debugConfigPanel){
+        debugConfigPanel.style.display = 'block';
+      }
     }
-    if(resetBtn){
-      resetBtn.disabled = false;
+    if(snapshotBtn){
+      snapshotBtn.disabled = currentMode !== 'prod' || prodFrozen || prodWaiting;
     }
     if(clearBtn){
       clearBtn.disabled = activeOverlays.length === 0;
@@ -621,76 +1129,6 @@
       .catch(()=>{});
   }
 
-  function handleGenerateStory(){
-    if(storyGenerating){
-      return;
-    }
-    const button = document.querySelector('.story-actions button');
-    storyGenerating = true;
-    if(button){
-      button.disabled = true;
-      button.textContent = 'Generating...';
-    }
-
-    const box = document.getElementById('storyBox');
-    if(box){
-      box.textContent = 'Generating story...';
-      box.classList.remove('story-box--empty');
-    }
-
-    if(currentMode === 'prod'){
-      let chain = Promise.resolve();
-      if(prodFrozen){
-        chain = chain.then(()=>unfreezeProd());
-      }
-      if(!prodWaiting){
-        chain = chain.then(()=>triggerSnapshot());
-      }
-      chain.catch(err=>{
-        console.error('Snapshot preparation failed:', err);
-      });
-    }
-
-    const payload = {
-      name: storyNameInput,
-      character: storyCharacter,
-      food: storyFood,
-    };
-
-    fetch('/api/story_generate', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(payload),
-    })
-      .then(r => r.json())
-      .then(data => {
-        if(data && typeof data.text === 'string'){
-          storyText = data.text;
-          updateStoryBox();
-          return;
-        }
-        if(data && data.error){
-          console.error('Story generation failed:', data.error);
-          if(box){
-            box.textContent = `Story generation failed: ${data.error}`;
-          }
-        }
-      })
-      .catch(err => {
-        console.error('Story generation error:', err);
-        if(box){
-          box.textContent = 'Story generation failed: network error.';
-        }
-      })
-      .finally(() => {
-        storyGenerating = false;
-        if(button){
-          button.disabled = false;
-          button.textContent = 'Generate Story';
-        }
-      });
-  }
-
   // Poll status every second
   setInterval(()=>{
     fetch('/api/status')
@@ -698,13 +1136,12 @@
       .then(s=>{
         document.getElementById('fps').textContent = s.fps + ' FPS';
         const catalog = Array.isArray(s.overlays) ? s.overlays : [];
-        const catalogChanged = JSON.stringify(catalog) !== JSON.stringify(overlayCatalog);
-        if(catalogChanged){
+        if(JSON.stringify(catalog) !== JSON.stringify(overlayCatalog)){
           overlayCatalog = catalog;
           rebuildOverlayButtons(overlayCatalog);
         }
+        maybeApplyPendingSelections();
         activeOverlays = Array.isArray(s.active_overlays) ? s.active_overlays : [];
-        const activeSet = new Set(activeOverlays);
         nudgeMode = !!s.nudge;
         if(Object.prototype.hasOwnProperty.call(s, 'nudge_target')){
           nudgeTarget = s.nudge_target;
@@ -722,43 +1159,6 @@
         currentMode = s.mode;
         prodFrozen = !!s.prod_frozen;
         prodWaiting = !!s.prod_waiting;
-
-        let overlayNeedsSync = false;
-        if(catalogChanged){
-          if(selectedCharacterOverlay && !overlayCatalog.includes(selectedCharacterOverlay)){
-            selectedCharacterOverlay = null;
-            overlayNeedsSync = true;
-          }
-          if(selectedFoodOverlay && !overlayCatalog.includes(selectedFoodOverlay)){
-            selectedFoodOverlay = null;
-            overlayNeedsSync = true;
-          }
-        }
-
-        if(selectedCharacterOverlay && !activeSet.has(selectedCharacterOverlay)){
-          overlayNeedsSync = true;
-        }
-        if(selectedFoodOverlay && !activeSet.has(selectedFoodOverlay)){
-          overlayNeedsSync = true;
-        }
-
-        if(!selectedCharacterOverlay && characterOverlayPrefix){
-          const hasCharacterMatch = overlayCatalog.some(name=>overlayMatchesPrefix(name, characterOverlayPrefix));
-          if(hasCharacterMatch){
-            overlayNeedsSync = true;
-          }
-        }
-        if(!selectedFoodOverlay && foodOverlayPrefix){
-          const hasFoodMatch = overlayCatalog.some(name=>overlayMatchesPrefix(name, foodOverlayPrefix));
-          if(hasFoodMatch){
-            overlayNeedsSync = true;
-          }
-        }
-
-        if(overlayNeedsSync && !storyOverlayInFlight){
-          applyStoryOverlays();
-        }
-
         updateUi();
       })
       .catch(()=>{});
@@ -783,28 +1183,11 @@
   // initialize UI to match defaults
   updateUi();
   updateNudgePanel();
-  const initialNameEl = document.getElementById('storyNameInput');
-  if(initialNameEl){
-    storyNameInput = initialNameEl.value.trim();
-  }
-  const initialCharacterEl = document.getElementById('storyCharacterSelect');
-  const initialFoodEl = document.getElementById('storyFoodSelect');
-  storyCharacter = initialCharacterEl ? (initialCharacterEl.value || '') : '';
-  storyFood = initialFoodEl ? (initialFoodEl.value || '') : '';
-  characterOverlayPrefix = (characterOverlayMap[storyCharacter] || '').toUpperCase();
-  foodOverlayPrefix = (foodOverlayMap[storyFood] || '').toUpperCase();
-  selectedCharacterOverlay = null;
-  selectedFoodOverlay = null;
-  applyStoryOverlays();
+  
+  // Load prompt configuration on page load
+  loadPromptConfig();
+  loadDebugConfig();
   </script>
-  <div style="padding:20px;
-              display:flex;
-              justify-content:center;">
-    <button type="button" id="resetBtn" onclick="resetProd()"
-            style="font-size:28px; padding:16px 28px; border-radius:16px; background:#ff7518; color:#111; border:none; cursor:pointer; font-weight:700;">
-      Reset
-    </button>
-  </div>
   <div id="fpsBox" style="position:fixed; right:10px; top:10px; color:#0f0; font-weight:bold">FPS: <span id="fps">-</span></div>
 </body>
 </html>

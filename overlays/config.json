@@ -1,19 +1,19 @@
 {
-  "XC1.png": {
+  "XCI1.png": {
     "scale": 0.8,
     "y_offset": 0.55,
     "x_anchor": 0.5,
     "offset_x": 150.0,
     "offset_y": 50.0
   },
-  "XC2.png": {
+  "XCI2.png": {
     "scale": 1.12,
     "y_offset": 0.55,
     "x_anchor": 0.5,
     "offset_x": 150.0,
     "offset_y": 0.0
   },
-  "XC3.png": {
+  "XCI3.png": {
     "scale": 0.9,
     "y_offset": 0.55,
     "x_anchor": 0.5,
