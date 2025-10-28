@@ -1,31 +1,38 @@
 {
-  "XCI1.png": {
-    "scale": 0.8,
-    "y_offset": 0.55,
-    "x_anchor": 0.5,
-    "offset_x": 150.0,
-    "offset_y": 50.0
-  },
-  "XCI2.png": {
-    "scale": 1.12,
-    "y_offset": 0.55,
-    "x_anchor": 0.5,
-    "offset_x": 150.0,
-    "offset_y": 0.0
-  },
-  "XCI3.png": {
-    "scale": 0.9,
-    "y_offset": 0.55,
-    "x_anchor": 0.5,
-    "offset_x": 80.0,
-    "offset_y": 50.0
-  },
   "XCA1.png": {
     "scale": 0.9,
     "y_offset": 0.55,
     "x_anchor": 0.5,
     "offset_x": 0.0,
     "offset_y": 55.0
+  },
+  "XCA2.png": {
+    "scale": 0.9,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": 0.0
+  },
+  "XCA3.png": {
+    "scale": 0.9,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": 0.0
+  },
+  "XCA4.png": {
+    "scale": 0.9,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": 0.0
+  },
+  "XCA5.png": {
+    "scale": 0.9,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": 0.0
   },
   "XCH1.png": {
     "scale": 0.56,
@@ -47,6 +54,48 @@
     "x_anchor": 0.5,
     "offset_x": 80.0,
     "offset_y": 30.0
+  },
+  "XCH4.png": {
+    "scale": 0.9,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": 0.0
+  },
+  "XCH5.png": {
+    "scale": 0.9,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": 0.0
+  },
+  "XCI1.png": {
+    "scale": 0.8,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 150.0,
+    "offset_y": 50.0
+  },
+  "XCI2.png": {
+    "scale": 1.12,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 150.0,
+    "offset_y": 0.0
+  },
+  "XCI3.png": {
+    "scale": 0.9,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 80.0,
+    "offset_y": 50.0
+  },
+  "XCI4.png": {
+    "scale": 0.9,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": 0.0
   },
   "YD1.png": {
     "scale": 2.42,
@@ -82,6 +131,13 @@
     "x_anchor": 0.5,
     "offset_x": 0.0,
     "offset_y": -150.0
+  },
+  "YD6.png": {
+    "scale": 1.2,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": -280.0
   },
   "YP1.png": {
     "scale": 1.0,
@@ -152,6 +208,13 @@
     "x_anchor": 0.5,
     "offset_x": 0.0,
     "offset_y": -340.0
+  },
+  "YW6.png": {
+    "scale": 0.9,
+    "y_offset": 0.55,
+    "x_anchor": 0.5,
+    "offset_x": 0.0,
+    "offset_y": 0.0
   },
   "fangs.png": {
     "scale": 0.64,
