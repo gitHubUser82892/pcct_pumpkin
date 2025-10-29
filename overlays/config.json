@@ -210,11 +210,11 @@
     "offset_y": -340.0
   },
   "YW6.png": {
-    "scale": 0.9,
+    "scale": 1.18,
     "y_offset": 0.55,
     "x_anchor": 0.5,
     "offset_x": 0.0,
-    "offset_y": 0.0
+    "offset_y": -300.0
   },
   "fangs.png": {
     "scale": 0.64,

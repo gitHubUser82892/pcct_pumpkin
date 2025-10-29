@@ -33,30 +33,52 @@ except ImportError:
 # Story templates for Halloween stories
 STORY_TEMPLATES = [
     # Spooky
-    "{name} haunts the office in a {costume}, lurking near the {treat}. Employees scream!",
-    "Dressed as a {costume}, {name} casts a spooky shadow while reaching for a {treat}.",
-    "The office was never the same after {name} came as a {costume}, bringing a mysterious {treat}.",
-    "On Halloween, {name} transformed the break room into a spooky scene with their {costume} and a {treat}.",
+    "{name}, the office lights flicker as your {costume} passes—spirits linger by the copier, whispering about your missing {treat}. Beware the next “reply all”; it won’t come from the living.",
+    "The full moon shines on your desk, {name}, and the scent of {treat} lures shadows from the breakroom. Before dawn, you’ll discover who’s been haunting the printer—look closely at the reflection in the monitor.",
+    "Your inbox glows with eerie light, {name}, each unread message pulsing like a heartbeat. The ghosts of deadlines past demand tribute—perhaps a piece of {treat} will appease them.",
+    "As you sip stale coffee under fluorescent moons, {name}, your {costume} begins to whisper. The whispers spell your name… backward.",
+    "The conference room is locked, {name}, yet laughter echoes inside. The spirits of meetings-that-should-have-been-emails hunger for your {treat} tonight.",
     # Funny
-    "{name} in a {costume} couldn't stop laughing while tripping over a pile of {treat}s.",
-    "The real treat was {name}'s {costume}, especially when they danced for candy!",
-    "When the boss asked for a report, {name} in a {costume} just handed over a {treat} instead.",
-    "Everyone expected a scare, but {name} brought laughs in their {costume} and a bag of {treat}s.",
-    # Halloweeny
-    "It was a classic Halloween in the office with {name} as a {costume}, handing out {treat}s.",
-    "{name}'s desk was the place to be for Halloween, featuring a {costume} and a big bowl of {treat}s.",
-    "The sight of {name} in a {costume} brought Halloween spirit, especially with their {treat} stash.",
-    "Legends say {name} still roams the office in their {costume}, guarding the secret candy {treat}.",
+    "{name}, the spirits admire your {costume}—they say you’re overdressed for casual Friday but underdressed for the apocalypse. Guard your {treat}, or HR may classify it as a taxable perk.",
+    "I see you, {name}, triumphantly wielding {treat} like office contraband. Beware: by 3 PM, your snack will vanish faster than productivity after a team-building exercise.",
+    "Your future holds caffeine and confusion, {name}. The {treat} will sustain you through endless meetings, but beware—the ghost of Outlook Crashes Past still roams.",
+    "Dressed as {costume}, {name}, you’ll win the costume contest… but only because everyone else forgot to unmute. Celebrate with {treat}, before Finance audits your joy.",
+    "The stars foresee {treat} crumbs on your keyboard, {name}. Fear not—the IT spirits thrive on chaos and caramel.",
     # Adventurous
-    "The adventure began when {name} in a {costume} found a mysterious {treat} map in the office.",
-    "{name} donned their {costume} and followed the {treat} trail to uncover office secrets.",
-    "With a {costume} and a brave heart, {name} ventured into the haunted server room for a {treat}.",
-    "It was a race against time as {name} in a {costume} sought the legendary {treat} of the office.",
+    "{name}, destiny calls from the 13th floor where no badge has worked since 2008. Only your {costume} and a handful of {treat} can guide you safely back before the next status update.",
+    "The office air vents whisper maps to hidden breakroom realms, {name}. Follow the trail of {treat} wrappers—what you find will change your quarterly goals forever.",
+    "With your {costume} as armor and {treat} as offering, {name}, you’ll brave the haunted storage room. There, the ancient stapler awaits its chosen wielder.",
+    "The spirits of innovation summon you, {name}. They promise glory—and unlimited {treat}—if you survive the labyrinth of meetings unscathed.",
+    "Tonight, {name}, you’ll chase the phantom of lost Wi-Fi through the cubicle maze. Only {treat} and courage will see you through.",
+    # Halloweeny
+    "Pumpkins grin from every cubicle, {name}, as your {costume} glows brighter than the copier light. Share your {treat}, and the office spirits might spare your lunch from vanishing.",
+    "Candles flicker beside your monitor, {name}, and bats circle the breakroom fridge. The prophecy says whoever offers {treat} will summon the Great Pumpkin of Payroll.",
+    "{name}, the aroma of {treat} drifts through the hall like a spell. Soon, coworkers will gather like zombies for the annual potluck of destiny.",
+    "Your {costume} dazzles even the undead in Accounting, {name}. Before the night ends, one will reveal the sacred secret: where the leftover candy is hidden.",
+    "As the moon rises over the office park, {name}, your {costume} marks you chosen for the Candy Coven. Guard your {treat}—and your PTO balance—with care."
 ]
+
+MAIN_PROMPT_TEMPLATE = (
+    "You are a mischievous Halloween fortune teller speaking from beyond the veil. "
+    "Generate a short fortune for {name}, who is dressed as {costume}, and whose favorite "
+    "treat is {treat}. The fortune should follow these rules:\n"
+    "1. Incorporate the name, costume, and treat.\n"
+    "2. Be spooky and mysterious.\n"
+    "3. Be 3-4 sentences and 50-75 words long.\n"
+    "4. Use a fortune teller's voice (e.g., 'I see...', 'Beware...', 'The spirits whisper...').\n"
+    "5. Include Halloween imagery (moons, shadows, candles, spirits, etc.).\n"
+    "6. End with a chilling or humorous twist.\n"
+    "7. Take place in an office setting.\n\n"
+    "Here are a few sample fortunes for inspiration:\n{examples}\n\n"
+    "Now deliver the fortune in a single coherent block of text."
+)
+
+OLLAMA_DEFAULT_MODEL = "llama3.2:1b"
 
 # LLM instance
 llm_instance = None
 llm_type = None  # 'llama_cpp' or 'ollama'
+llm_model_name = None
 prompt_config = None
 debug_config = None
 
@@ -110,6 +132,10 @@ def load_prompt_config():
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             prompt_config = json.load(f)
+
+        # Remove prompt instructions that are now hard-coded in this module.
+        for legacy_key in ("system_prompt", "main_prompt_template", "sample_templates"):
+            prompt_config.pop(legacy_key, None)
         
         # Extract debug configuration
         debug_config = prompt_config.get('debug_mode', {})
@@ -122,11 +148,6 @@ def load_prompt_config():
         print(f"Error loading prompt config: {e}")
         # Use default configuration
         prompt_config = {
-            "system_prompt": "You are a creative Halloween story generator for office settings.",
-            "main_prompt_template": "Generate a spooky Halloween story for an office setting. Use these details:\n- Name: {name}\n- Costume: {costume}\n- Treat: {treat}\n\nWrite a creative, spooky Halloween story (2-3 sentences) that incorporates the name, costume, and treat.",
-            "sample_templates": [
-                "In the eerie office, {name} appeared as a {costume}, their presence sending shivers down everyone's spine as they offered mysterious {treat}."
-            ],
             "llm_parameters": {
                 "max_tokens": 200,
                 "temperature": 0.8,
@@ -165,7 +186,7 @@ def save_prompt_config():
 
 def initialize_llm():
     """Initialize the local LLM model - try Ollama first, then llama.cpp."""
-    global llm_instance, llm_type
+    global llm_instance, llm_type, llm_model_name
     
     # Try Ollama first (easier to use and more reliable)
     if OLLAMA_AVAILABLE:
@@ -175,6 +196,7 @@ def initialize_llm():
             if response.status_code == 200:
                 print("✓ Connected to Ollama!")
                 llm_type = "ollama"
+                llm_model_name = OLLAMA_DEFAULT_MODEL
                 llm_instance = None  # We'll use requests directly for Ollama
                 return True
         except Exception as e:
@@ -205,6 +227,7 @@ def initialize_llm():
                     verbose=False
                 )
                 llm_type = "llama_cpp"
+                llm_model_name = os.path.basename(model_path)
                 print("✓ LLM initialized successfully (llama.cpp)!")
                 return True
         except Exception as e:
@@ -229,18 +252,22 @@ def generate_story_with_llm(name, costume_display, treat_display):
         print("ERROR: Prompt config is None")
         return generate_story_fallback(name, costume_display, treat_display)
 
-    # Get sample templates from config
-    sample_templates = prompt_config.get('sample_templates', [])
-    
-    # Create a prompt for the LLM using configurable template
-    main_template = prompt_config.get('main_prompt_template', 
-        "Generate a spooky Halloween story for an office setting. Use these details:\n- Name: {name}\n- Costume: {costume}\n- Treat: {treat}\n\nWrite a creative, spooky Halloween story (3-4 sentences or maximum about 90 words) that incorporates the name, costume, and treat.")
-    
+    model_name = llm_model_name or 'unknown'
+    debug_log(f"Using LLM backend '{llm_type}' with model '{model_name}'", "DEBUG")
+
     # Format the examples
-    examples_text = '\n'.join(sample_templates) if sample_templates else ""
+    examples_filled = [
+        tpl.format(
+            name=name or 'Someone',
+            costume=costume_display or 'mysterious costume',
+            treat=treat_display or 'mysterious treat'
+        )
+        for tpl in STORY_TEMPLATES
+    ]
+    examples_text = '\n'.join(examples_filled)
     
     # Create the full prompt
-    prompt = main_template.format(
+    prompt = MAIN_PROMPT_TEMPLATE.format(
         name=name or 'Someone',
         costume=costume_display or 'mysterious costume',
         treat=treat_display or 'mysterious treat',
@@ -255,6 +282,7 @@ def generate_story_with_llm(name, costume_display, treat_display):
     
     try:
         debug_log("Calling LLM to generate story...", "DEBUG")
+        print(f"[DEBUG] Using LLM backend: {llm_type} | model: {model_name}")
         print(f"[DEBUG] Calling LLM ({llm_type}) with prompt length: {len(prompt)} chars")
         
         # Call the appropriate LLM backend
@@ -263,7 +291,7 @@ def generate_story_with_llm(name, costume_display, treat_display):
             response = requests.post(
                 "http://localhost:11434/api/generate",
                 json={
-                    "model": "tinyllama:1.1b",  # or "llama2" or "llama2:7b" or "mistral" or "qwen2.5:0.5b" - customize as needed
+                    "model": OLLAMA_DEFAULT_MODEL,
                     "prompt": prompt,
                     "stream": False,
                     "options": {
@@ -1160,13 +1188,11 @@ def api_prompt_config():
         if prompt_config is None:
             prompt_config = {}
         
-        # Update specific fields if provided
-        if 'system_prompt' in data:
-            prompt_config['system_prompt'] = data['system_prompt']
-        if 'main_prompt_template' in data:
-            prompt_config['main_prompt_template'] = data['main_prompt_template']
-        if 'sample_templates' in data:
-            prompt_config['sample_templates'] = data['sample_templates']
+        # Remove legacy prompt fields so the in-code templates remain authoritative.
+        for legacy_key in ('system_prompt', 'main_prompt_template', 'sample_templates'):
+            data.pop(legacy_key, None)
+            prompt_config.pop(legacy_key, None)
+
         if 'llm_parameters' in data:
             prompt_config['llm_parameters'] = data['llm_parameters']
         if 'fallback_templates' in data:
@@ -1188,18 +1214,11 @@ def api_prompt_config():
 @app.route('/api/prompt_config/reset', methods=['POST'])
 def api_reset_prompt_config():
     """Reset prompt configuration to defaults."""
-    global prompt_config
+    global prompt_config, debug_config
     config_path = os.path.join(os.path.dirname(__file__), "prompt_config.json")
     
     # Load default configuration
     default_config = {
-        "system_prompt": "You are a creative Halloween story generator for office settings. Generate spooky, atmospheric stories that are engaging and fun.",
-        "main_prompt_template": "Generate a spooky Halloween story for an office setting. Use these details:\n- Name: {name}\n- Costume: {costume}\n- Treat: {treat}\n\nHere are some example story styles to inspire you:\n{examples}\n\nWrite a creative, spooky Halloween story (2-3 sentences) that incorporates the name, costume, and treat. Make it atmospheric and engaging for an office Halloween party setting.",
-        "sample_templates": [
-            "In the eerie office, {name} appeared as a {costume}, their presence sending shivers down everyone's spine as they offered mysterious {treat}.",
-            "The office Halloween party took a supernatural turn when {name} arrived dressed as a {costume}, distributing enchanted {treat} that seemed to glow in the darkness.",
-            "Legends spoke of {name}, who would don the {costume} every Halloween, wandering the office corridors with a bag of {treat}, their footsteps echoing through the empty halls."
-        ],
         "llm_parameters": {
             "max_tokens": 200,
             "temperature": 0.8,

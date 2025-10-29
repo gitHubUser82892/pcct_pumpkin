@@ -1,0 +1,47 @@
+{
+  "main_prompt_template": "You are a mischievous Halloween fortune teller speaking from beyond the veil. Generate a short fortune for {name}, who is dressed as {costume}, and whose favorite treat is {treat}. The fortune should follow these rules:\n1. Incorporate the name, costume, and treat.\n2. Be spooky and mysterious.\n3. Be 3-4 sentences and 50-75 words long.\n4. Use a fortune teller's voice (e.g., 'I see...', 'Beware...', 'The spirits whisper...').\n5. Include Halloween imagery (moons, shadows, candles, spirits, etc.).\n6. End with a chilling or humorous twist.\n7. Take place in an office setting.\n\nHere are a few sample fortunes for inspiration:\n{examples}\n\nNow deliver the fortune in a single coherent block of text.",
+  "sample_templates": [
+    "{name}, the office lights flicker as your {costume} passes—spirits linger by the copier, whispering about your missing {treat}. Beware the next “reply all”; it won’t come from the living.",
+    "The full moon shines on your desk, {name}, and the scent of {treat} lures shadows from the breakroom. Before dawn, you’ll discover who’s been haunting the printer—look closely at the reflection in the monitor.",
+    "Your inbox glows with eerie light, {name}, each unread message pulsing like a heartbeat. The ghosts of deadlines past demand tribute—perhaps a piece of {treat} will appease them.",
+    "As you sip stale coffee under fluorescent moons, {name}, your {costume} begins to whisper. The whispers spell your name… backward.",
+    "The conference room is locked, {name}, yet laughter echoes inside. The spirits of meetings-that-should-have-been-emails hunger for your {treat} tonight.",
+    "{name}, the spirits admire your {costume}—they say you’re overdressed for casual Friday but underdressed for the apocalypse. Guard your {treat}, or HR may classify it as a taxable perk.",
+    "I see you, {name}, triumphantly wielding {treat} like office contraband. Beware: by 3 PM, your snack will vanish faster than productivity after a team-building exercise.",
+    "Your future holds caffeine and confusion, {name}. The {treat} will sustain you through endless meetings, but beware—the ghost of Outlook Crashes Past still roams.",
+    "Dressed as {costume}, {name}, you’ll win the costume contest… but only because everyone else forgot to unmute. Celebrate with {treat}, before Finance audits your joy.",
+    "The stars foresee {treat} crumbs on your keyboard, {name}. Fear not—the IT spirits thrive on chaos and caramel.",
+    "{name}, destiny calls from the 13th floor where no badge has worked since 2008. Only your {costume} and a handful of {treat} can guide you safely back before the next status update.",
+    "The office air vents whisper maps to hidden breakroom realms, {name}. Follow the trail of {treat} wrappers—what you find will change your quarterly goals forever.",
+    "With your {costume} as armor and {treat} as offering, {name}, you’ll brave the haunted storage room. There, the ancient stapler awaits its chosen wielder.",
+    "The spirits of innovation summon you, {name}. They promise glory—and unlimited {treat}—if you survive the labyrinth of meetings unscathed.",
+    "Tonight, {name}, you’ll chase the phantom of lost Wi-Fi through the cubicle maze. Only {treat} and courage will see you through.",
+    "Pumpkins grin from every cubicle, {name}, as your {costume} glows brighter than the copier light. Share your {treat}, and the office spirits might spare your lunch from vanishing.",
+    "Candles flicker beside your monitor, {name}, and bats circle the breakroom fridge. The prophecy says whoever offers {treat} will summon the Great Pumpkin of Payroll.",
+    "{name}, the aroma of {treat} drifts through the hall like a spell. Soon, coworkers will gather like zombies for the annual potluck of destiny.",
+    "Your {costume} dazzles even the undead in Accounting, {name}. Before the night ends, one will reveal the sacred secret: where the leftover candy is hidden.",
+    "As the moon rises over the office park, {name}, your {costume} marks you chosen for the Candy Coven. Guard your {treat}—and your PTO balance—with care."
+  ],
+  "llm_parameters": {
+    "max_tokens": 200,
+    "temperature": 0.8,
+    "top_p": 0.9,
+    "stop": [
+      "\n\n",
+      "###",
+      "---"
+    ]
+  },
+  "debug_mode": {
+    "enabled": true,
+    "log_level": "INFO",
+    "show_prompts": true,
+    "show_llm_parameters": true,
+    "show_story_generation": true,
+    "show_api_calls": true,
+    "show_errors": true
+  },
+  "fallback_templates": [
+    "{name} haunts the office in a {costume}, lurking near the {treat}. Employees scream!"
+  ]
+}
